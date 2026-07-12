@@ -1,9 +1,9 @@
 import 'package:dio/dio.dart';
-
+import 'package:reseller_app_tav/features/dashboard/services/api_config.dart';
 class DioClient {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'https://xbc.tavmobil.co.id/api',
+      baseUrl: ApiConfig.baseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
     ),

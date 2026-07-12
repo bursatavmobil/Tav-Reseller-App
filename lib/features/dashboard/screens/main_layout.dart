@@ -30,13 +30,11 @@ class _MainLayoutState extends State<MainLayout> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String _activeMenu = 'Dashboard';
   late final AuthProvider _authProvider;
-
   bool _isKycChecked = false;
 
   @override
   void initState() {
     super.initState();
-
     _authProvider = context.read<AuthProvider>();
     _authProvider.addListener(_handleAuthLogoutListener);
 
@@ -55,14 +53,14 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _initDashboardAndVerifyKyc() async {
     try {
-      final dashboardProvider = context.read<DashboardProvider>();
+      // Menunggu animasi Fade selesai seutuhnya sebelum mengisi data
+      await Future.delayed(const Duration(milliseconds: 350));
+      if (!mounted) return;
 
+      final dashboardProvider = context.read<DashboardProvider>();
       debugPrint('[MAIN LAYOUT] Memulai pengambilan data dashboard...');
       await dashboardProvider.loadDashboardData();
 
-      if (!mounted) return;
-
-      await Future.delayed(const Duration(milliseconds: 150));
       if (!mounted) return;
 
       final currentProfile = dashboardProvider.profile;
@@ -105,20 +103,13 @@ class _MainLayoutState extends State<MainLayout> {
           pageBuilder: (context, animation, secondaryAnimation) =>
               const LoginScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(0.0, 1.0);
-            const end = Offset.zero;
-            const curve = Curves.easeInOutCubic;
-
-            var tween = Tween(
-              begin: begin,
-              end: end,
-            ).chain(CurveTween(curve: curve));
-            return SlideTransition(
-              position: animation.drive(tween),
+            // PERBAIKAN ANIMASI OUT: Menggunakan Fade murni linier tanpa bounce/slide meluncur
+            return FadeTransition(
+              opacity: CurvedAnimation(parent: animation, curve: Curves.linear),
               child: child,
             );
           },
-          transitionDuration: const Duration(milliseconds: 500),
+          transitionDuration: const Duration(milliseconds: 250),
         ),
         (route) => false,
       );
@@ -131,7 +122,11 @@ class _MainLayoutState extends State<MainLayout> {
 
     if (dashboardProvider.isLoading && profile == null) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.black),
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(
+            AppTheme.primaryButtonContainer,
+          ),
+        ),
       );
     }
 
@@ -235,16 +230,13 @@ class _MainLayoutState extends State<MainLayout> {
                       onTarikSaldoPressed: () => TarikSaldoModal.show(context),
                       onLihatDetailPressed: () {
                         setState(() {
-                          _activeMenu =
-                              "Saldo & Komisi"; // Disesuaikan dengan penamaan case pada switch Anda
+                          _activeMenu = "Saldo & Komisi";
                         });
                       },
                     ),
                     const SizedBox(height: 20),
-
                     const PenjualanChartCard(),
                     const SizedBox(height: 20),
-
                     const RiwayatMobilTerjualCard(),
                   ],
                 );

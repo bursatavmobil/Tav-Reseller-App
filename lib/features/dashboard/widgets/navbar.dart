@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:reseller_app_tav/core/theme/app_assets.dart';
 
@@ -38,24 +39,7 @@ class Navbar extends StatelessWidget implements PreferredSizeWidget {
         },
       ),
       title: Row(
-        children: [
-          Image.asset(
-            AppAssets.logoTav,
-            height: 20,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return Text(
-                "TAV MOBIL",
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.primaryButtonContainer,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                  fontFamily: 'Montserrat',
-                ),
-              );
-            },
-          ),
-        ],
+        children: [SvgPicture.asset(AppAssets.logoTav, width: 120)],
       ),
       actions: [
         Padding(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reseller_app_tav/features/dashboard/providers/dashboard_provider.dart';
+import 'package:reseller_app_tav/features/dashboard/widgets/profile/kyc_multistepform_modal.dart';
 
 class KycRestrictionWidget extends StatelessWidget {
   final String message;
@@ -22,7 +23,6 @@ class KycRestrictionWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Ilustrasi Gembok / Akses Terbatas
             Container(
               width: 100,
               height: 100,
@@ -38,7 +38,6 @@ class KycRestrictionWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // Judul Utama
             const Text(
               'Akses Fitur Terbatas',
               textAlign: TextAlign.center,
@@ -50,7 +49,6 @@ class KycRestrictionWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            // Deskripsi Error dari API
             Text(
               message,
               textAlign: TextAlign.center,
@@ -62,7 +60,6 @@ class KycRestrictionWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            // Tombol Refresh untuk Re-fetch API
             SizedBox(
               width: 180,
               height: 46,
@@ -76,11 +73,18 @@ class KycRestrictionWidget extends StatelessWidget {
                 ),
                 onPressed: dashboardProvider.isLoading
                     ? null
-                    : () async {
-                        // Memicu re-fetch profile dan data dashboard
-                        await context
-                            .read<DashboardProvider>()
-                            .loadDashboardData();
+                    : () {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => KycMultiStepFormModal(
+                            onSuccess: () async {
+                              await context
+                                  .read<DashboardProvider>()
+                                  .loadDashboardData();
+                            },
+                          ),
+                        );
                       },
                 icon: dashboardProvider.isLoading
                     ? const SizedBox(

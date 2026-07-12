@@ -49,3 +49,6 @@ app.*.map.json
 
 # git file monitor
 .gitattributes
+
+#realese environtment
+config.json

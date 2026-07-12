@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:reseller_app_tav/core/network/dummy_header_token.dart';
 import 'package:reseller_app_tav/core/service/session_manager.dart';
@@ -23,7 +22,10 @@ class AuthProvider extends ChangeNotifier {
 
   StreamSubscription<GoogleSignInAuthenticationEvent>? _authEventsSub;
 
-  static final String _webClientId = dotenv.env['CLIENT_ID'] ?? '';
+  static const String _webClientId = String.fromEnvironment(
+    'CLIENT_ID',
+    defaultValue: '',
+  );
 
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
@@ -95,6 +97,26 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  String _parseGoogleSignInError(dynamic error) {
+    final String errorString = error.toString().toLowerCase();
+
+    if (errorString.contains('canceled') || errorString.contains('12501')) {
+      return 'Proses masuk dibatalkan.';
+    } else if (errorString.contains('account reauth failed') ||
+        errorString.contains('status code 16') ||
+        errorString.contains('[16]')) {
+      return 'Gagal memverifikasi akun Google. Mohon pastikan sertifikat SHA-1 Release sudah terdaftar di Firebase/Google Cloud.';
+    } else if (errorString.contains('network_error') ||
+        errorString.contains('7')) {
+      return 'Koneksi internet bermasalah. Periksa jaringan Anda dan coba lagi.';
+    } else if (errorString.contains('developer_error') ||
+        errorString.contains('10')) {
+      return 'Terjadi kesalahan konfigurasi sistem aplikasi (SHA-1/Client ID). Mohon hubungi bantuan.';
+    }
+
+    return 'Gagal masuk dengan Google. Silakan coba beberapa saat lagi.';
+  }
+
   Future<void> _handleAuthenticationEvent(
     GoogleSignInAuthenticationEvent event,
   ) async {
@@ -109,26 +131,40 @@ class AuthProvider extends ChangeNotifier {
         final GoogleSignInAuthentication auth = await user.authentication;
         final String? idToken = auth.idToken;
 
-        if (idToken == null)
+        if (idToken == null) {
           throw Exception('Google ID Token tidak ditemukan.');
+        }
 
         final response = await _apiService.verifyToken(idToken);
-        final String? appToken =
-            response['token'] ?? response['data']?['token'];
+
+        final String? appToken = response != null
+            ? (response['token'] ?? response['data']?['token'])
+            : null;
 
         if (appToken != null) {
           await _apiService.saveToken(appToken);
           await SessionManager.updateLastActivity();
 
-          _userName = user.displayName ?? 'Reseller Partner';
-          _userPhotoUrl = user.photoUrl;
+          _userName =
+              user.displayName ??
+              response['data']?['name'] ??
+              'Reseller Partner';
+          _userPhotoUrl = user.photoUrl ?? response['data']?['gavatar'];
+
+          triggerAlert('Selamat datang kembali, $_userName!', true);
           notifyListeners();
         } else {
-          throw Exception('Gagal mengekstrak Application Token dari server.');
+          final serverMessage =
+              response?['message'] ??
+              'Gagal mengekstrak Application Token dari server.';
+          throw Exception(serverMessage);
         }
       } catch (e) {
         debugPrint('[AUTH PROVIDER ERROR] Proses pertukaran token gagal: $e');
         await logout();
+
+        final friendlyMessage = _parseGoogleSignInError(e);
+        triggerAlert(friendlyMessage, false);
       } finally {
         _setLoading(false);
       }
@@ -139,11 +175,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> signInWithGoogle() async {
+  Future<bool> signInWithGoogle() async {
     _setLoading(true);
     try {
       if (_googleSignIn.supportsAuthenticate()) {
         await _googleSignIn.authenticate();
+
+        _setLoading(false);
+        return true;
       } else {
         throw Exception(
           'Platform ini tidak mendukung metode otentikasi yang dikenal.',
@@ -152,6 +191,11 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('[AUTH PROVIDER ERROR] Gagal memicu authenticate(): $e');
       _setLoading(false);
+
+      final friendlyMessage = _parseGoogleSignInError(e);
+      triggerAlert(friendlyMessage, false);
+
+      return false;
     }
   }
 
@@ -203,7 +247,6 @@ class AuthProvider extends ChangeNotifier {
         _userName = userData?['name'] ?? 'Reseller Partner';
         _userPhotoUrl = userData?['gavatar'];
 
-        // Simpan session activity
         await SessionManager.updateLastActivity();
 
         debugPrint(

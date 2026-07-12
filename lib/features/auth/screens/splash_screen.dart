@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:reseller_app_tav/core/theme/app_assets.dart';
 import 'package:reseller_app_tav/features/auth/providers/auth_provider.dart';
@@ -110,17 +111,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: child,
                     );
                   },
-                  child: Image.asset(
-                    AppAssets.logoReseller,
-                    width: 140,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.directions_car_filled_rounded,
-                        color: Color(0xFFE52525),
-                        size: 80,
-                      );
-                    },
-                  ),
+                  child: SvgPicture.asset(AppAssets.logoReseller, width: 160),
                 ),
 
                 const Spacer(flex: 1),

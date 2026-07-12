@@ -18,9 +18,9 @@ class _LoginScreenState extends State<LoginScreen> {
   late final TextEditingController _emailController;
   late final TextEditingController _passwordController;
   bool _obscurePassword = true;
-  
-  // State untuk mengontrol tampilan form yang aktif
-  bool _isLoginView = true; 
+  bool _isLoginView = true;
+  bool _isManualLoading = false;
+  bool _isGoogleLoading = false;
 
   @override
   void initState() {
@@ -41,9 +41,6 @@ class _LoginScreenState extends State<LoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
       if (authProvider.userName != null && mounted) {
-        debugPrint(
-          '[LOGIN SCREEN] User aktif terdeteksi, navigasi ke MainLayout',
-        );
         _navigateToMainLayout();
       }
     });
@@ -52,14 +49,83 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_validateInputs()) return;
 
-    final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.loginUser(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+    setState(() {
+      _isManualLoading = true;
+    });
 
-    if (success && mounted) {
-      _navigateToMainLayout();
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final success = await authProvider.loginUser(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (success && mounted) {
+        AlertManager.show(context, 'Login Berhasil!', true);
+        _navigateToMainLayout();
+      } else {
+        if (mounted) {
+          AlertManager.show(
+            context,
+            'Gagal masuk. Silakan periksa kredensial Anda.',
+            false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = 'Terjadi kesalahan sistem saat login.';
+        if (e is Exception) {
+          errorMessage = e.toString().replaceAll('Exception: ', '');
+        } else if (e.toString().contains('401')) {
+          errorMessage = 'Gagal, periksa kembali email dan password anda';
+        }
+        AlertManager.show(context, errorMessage, false);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isManualLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final isSuccess = await authProvider.signInWithGoogle();
+
+      if (isSuccess && mounted) {
+        AlertManager.show(context, 'Login Berhasil!', true);
+        _navigateToMainLayout();
+      } else {
+        if (mounted) {
+          AlertManager.show(
+            context,
+            'Gagal Masuk, Login Diabatalkan',
+            false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = 'Terjadi kesalahan saat masuk dengan Google.';
+        if (e is Exception) {
+          errorMessage = e.toString().replaceAll('Exception: ', '');
+        }
+        AlertManager.show(context, errorMessage, false);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGoogleLoading = false;
+        });
+      }
     }
   }
 
@@ -72,9 +138,20 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _navigateToMainLayout() {
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const MainLayout()));
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const MainLayout(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.linear),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
   }
 
   @override
@@ -85,66 +162,46 @@ class _LoginScreenState extends State<LoginScreen> {
         top: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return Consumer<AuthProvider>(
-              builder: (context, authProvider, _) {
-                if (authProvider.userName != null) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) _navigateToMainLayout();
-                  });
-                }
-
-                return SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: IntrinsicHeight(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildHeaderSection(),
-                          
-                          // Gunakan AnimatedSwitcher untuk transisi halus
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            transitionBuilder: (child, animation) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0.0, 0.05),
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: _isLoginView
-                                ? _buildLoginFormSection(key: const ValueKey('login'))
-                                : RegisterFormWidget(
-                                    key: const ValueKey('register'),
-                                    onSuccess: () {
-                                      AlertManager.show(
-                                        context,
-                                        'Registrasi berhasil! Silakan login',
-                                        true,
-                                      );
-                                      // Kembali ke layar login setelah sukses daftar
-                                      setState(() => _isLoginView = true);
-                                    },
-                                    onSwitchToLogin: () {
-                                      // Fungsi saat user tap "Masuk di sini"
-                                      setState(() => _isLoginView = true);
-                                    },
-                                  ),
-                          ),
-                        ],
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildHeaderSection(),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
+                        child: _isLoginView
+                            ? _buildLoginFormSection(
+                                key: const ValueKey('login'),
+                              )
+                            : RegisterFormWidget(
+                                key: const ValueKey('register'),
+                                onSuccess: () {
+                                  AlertManager.show(
+                                    context,
+                                    'Registrasi berhasil! Silakan login',
+                                    true,
+                                  );
+                                  setState(() => _isLoginView = true);
+                                },
+                                onSwitchToLogin: () {
+                                  setState(() => _isLoginView = true);
+                                },
+                              ),
                       ),
-                    ),
+                    ],
                   ),
-                );
-              },
+                ),
+              ),
             );
           },
         ),
@@ -166,15 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 40),
-            Image.asset(
-              AppAssets.logoTav,
-              width: 160,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.directions_car_filled_rounded,
-                color: Color(0xFFE52525),
-                size: 100,
-              ),
-            ),
+            SvgPicture.asset(AppAssets.logoTav, width: 160),
             const SizedBox(height: 12),
             const Text(
               'TAV RESELLER PARTNER',
@@ -192,7 +241,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Tambahkan parameter Key untuk keperluan AnimatedSwitcher
   Widget _buildLoginFormSection({Key? key}) {
     return Container(
       key: key,
@@ -316,40 +364,37 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginButton() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, _) {
-        return SizedBox(
-          height: 52,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE52525),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: authProvider.isLoading ? null : _handleLogin,
-            child: authProvider.isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text(
-                    'Masuk',
-                    style: TextStyle(
-                      fontFamily: 'Montserrat',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+    final anyLoading = _isManualLoading || _isGoogleLoading;
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE52525),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
-        );
-      },
+        ),
+        onPressed: anyLoading ? null : _handleLogin,
+        child: _isManualLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text(
+                'Masuk',
+                style: TextStyle(
+                  fontFamily: 'Montserrat',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+      ),
     );
   }
 
@@ -370,65 +415,50 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildGoogleLoginButton() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, _) {
-        return SizedBox(
-          height: 52,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              elevation: 0,
-              side: BorderSide(color: Colors.grey.shade300),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            onPressed: authProvider.isLoading ? null : _handleGoogleLogin,
-            icon: SizedBox(
-              width: 20,
-              height: 20,
-              child: SvgPicture.asset(
-                AppAssets.googleIcon,
-                fit: BoxFit.contain,
-              ),
-            ),
-            label: authProvider.isLoading
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                    ),
-                  )
-                : const Text(
-                    'Masuk dengan Google',
-                    style: TextStyle(
-                      fontFamily: 'Montserrat',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
+    final anyLoading = _isManualLoading || _isGoogleLoading;
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          side: BorderSide(color: Colors.grey.shade300),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
-        );
-      },
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        onPressed: anyLoading ? null : _handleGoogleLogin,
+        icon: _isGoogleLoading
+            ? const SizedBox()
+            : SizedBox(
+                width: 20,
+                height: 20,
+                child: SvgPicture.asset(
+                  AppAssets.googleIcon,
+                  fit: BoxFit.contain,
+                ),
+              ),
+        label: _isGoogleLoading
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                ),
+              )
+            : const Text(
+                'Masuk dengan Google',
+                style: TextStyle(
+                  fontFamily: 'Montserrat',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+      ),
     );
-  }
-
-  Future<void> _handleGoogleLogin() async {
-    try {
-      final authProvider = context.read<AuthProvider>();
-      await authProvider.signInWithGoogle();
-      if (mounted) {
-        AlertManager.show(context, 'Login Berhasil!', true);
-      }
-    } catch (e) {
-      if (mounted) {
-        AlertManager.showError(context, e);
-      }
-    }
   }
 
   Widget _buildRegisterLink() {
@@ -440,7 +470,6 @@ class _LoginScreenState extends State<LoginScreen> {
           style: TextStyle(color: Colors.grey, fontSize: 13),
         ),
         GestureDetector(
-          // Ubah state menjadi false untuk menampilkan form register
           onTap: () => setState(() => _isLoginView = false),
           child: const Text(
             'Daftar di sini',

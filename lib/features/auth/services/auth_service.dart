@@ -166,7 +166,7 @@ class AuthApiService {
       debugPrint('Dio Error Data: ${e.response?.data}');
       debugPrint('==================================================');
 
-      if (e.response?.statusCode == 401) {
+      if (e.response?.statusCode == ("401")) {
         throw Exception('Email atau password salah.');
       }
 

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:reseller_app_tav/core/widget/cutsom_alert_widget.dart';
 
 import '../../../core/theme/app_assets.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widget/custom_logout_widget.dart'; 
+import '../../../core/widget/custom_logout_widget.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 
@@ -30,24 +31,7 @@ class Sidebar extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               decoration: const BoxDecoration(color: Colors.black),
               child: Center(
-                child: Image.asset(
-                  AppAssets
-                      .logoReseller, 
-                  height: 45,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Text(
-                      "TAV RESELLER",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
-                        fontFamily: 'Montserrat',
-                        fontSize: 18,
-                      ),
-                    );
-                  },
-                ),
+                child: SvgPicture.asset(AppAssets.logoReseller, width: 140),
               ),
             ),
             const SizedBox(height: 8),
@@ -103,20 +87,17 @@ class Sidebar extends StatelessWidget {
                         return InkWell(
                           borderRadius: BorderRadius.circular(8),
                           onTap: authProvider.isLoading
-                              ? null 
+                              ? null
                               : () {
                                   CustomLogoutDialog.show(
                                     context,
                                     onCancel: () {
-                                      Navigator.pop(
-                                        context,
-                                      ); 
+                                      Navigator.pop(context);
                                     },
                                     onConfirm: () async {
                                       Navigator.pop(context);
 
                                       try {
-                                        
                                         await authProvider.logout();
 
                                         if (context.mounted) {
@@ -151,7 +132,7 @@ class Sidebar extends StatelessWidget {
                                             cleanErrorMessage.isNotEmpty
                                                 ? cleanErrorMessage
                                                 : "Gagal melakukan logout.",
-                                            false, 
+                                            false,
                                           );
                                         }
                                       }
@@ -163,7 +144,6 @@ class Sidebar extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                            
                                 authProvider.isLoading
                                     ? const SizedBox(
                                         height: 16,

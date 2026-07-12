@@ -14,18 +14,14 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/providers/auth_provider.dart';
 
 void main() async {
-
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await dotenv.load(fileName: ".env");
-  } catch(e){
+  } catch (e) {
     throw Exception("Error Load .env : $e");
   }
   await initializeDateFormatting('id_ID', null);
-  await FlutterDownloader.initialize(
-    debug: false, 
-    ignoreSsl: true, 
-  );
+  await FlutterDownloader.initialize(debug: false, ignoreSsl: true);
   runApp(
     MultiProvider(
       providers: [
@@ -50,6 +46,7 @@ class ResellerApp extends StatelessWidget {
       title: 'Reseller App Tav Mobil',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      navigatorKey: context.read<AuthProvider>().navigatorKey,
       home: const SplashScreen(),
     );
   }

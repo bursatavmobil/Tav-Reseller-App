@@ -13,7 +13,15 @@ class CustomAnimatedAlert extends StatelessWidget {
   });
 
   static void show(BuildContext context, String message, bool isSuccess) {
-    final overlay = Overlay.of(context);
+    final overlay = Overlay.maybeOf(context);
+
+    if (overlay == null) {
+      debugPrint(
+        '[ALERT SYSTEM WARN] Gagal menampilkan alert karena OverlayState tidak ditemukan.',
+      );
+      return;
+    }
+
     late OverlayEntry overlayEntry;
 
     overlayEntry = OverlayEntry(
@@ -62,7 +70,7 @@ class _AlertAnimationWidgetState extends State<_AlertAnimationWidget>
     );
 
     _offsetAnimation = Tween<Offset>(
-      begin: const Offset(0, -1), 
+      begin: const Offset(0, -1),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 

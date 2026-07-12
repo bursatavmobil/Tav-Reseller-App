@@ -5,8 +5,8 @@ class AppAssets {
   static const String _iconPath = 'assets/icons/';
 
   static const String googleIcon = '${_imagePath}google.svg';
-  static const String logoTav = '${_imagePath}logo.png';
-  static const String logoReseller = '${_imagePath}logo_reseller.png';
+  static const String logoTav = '${_imagePath}logo.svg';
+  static const String logoReseller = '${_imagePath}logo_reseller.svg';
 
   static const String badgeIcon = '${_iconPath}badge-emblem-check.webp';
 
