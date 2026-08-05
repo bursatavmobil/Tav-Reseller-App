@@ -60,7 +60,8 @@ class KycGatekeeperModal {
     }
 
     if (status == 'suspended') {
-      _showSuspendedDialog(context, onKycSuccess);
+      // 🟢 DIUBAH: Teruskan objek profile secara utuh ke dialog suspended
+      _showSuspendedDialog(context, profile, onKycSuccess);
       return;
     }
   }
@@ -161,18 +162,32 @@ class KycGatekeeperModal {
     );
   }
 
+  // 🟢 PERBAIKAN DEKLARASI FUNGSI: Menerima kycId dan profileData secara resmi
   static void _showMultiStepForm(
     BuildContext context,
-    VoidCallback onKycSuccess,
-  ) {
+    VoidCallback onKycSuccess, {
+    int? kycId,
+    ProfileData? profileData,
+  }) {
     if (!context.mounted) return;
+    
+    // 🔍 LOG DEBUG PENGIRIMAN DIALOG
+    debugPrint('==================================================');
+    debugPrint('[GATEKEEPER DIALOG] Memicu showGeneralDialog...');
+    debugPrint('Mengirim kycId ke Form Modal      : $kycId');
+    debugPrint('Mengirim profileData ke Form Modal : ${profileData?.name}');
+    debugPrint('==================================================');
+
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, a1, a2) =>
-          KycMultiStepFormModal(onSuccess: onKycSuccess),
+      pageBuilder: (context, a1, a2) => KycMultiStepFormModal(
+        onSuccess: onKycSuccess,
+        kycId: kycId,                  // 🟢 TERUSKAN KE MULTISTEP FORM
+        profileData: profileData,      // 🟢 TERUSKAN KE MULTISTEP FORM
+      ),
     );
   }
 
@@ -288,8 +303,18 @@ class KycGatekeeperModal {
 
   static void _showSuspendedDialog(
     BuildContext context,
+    ProfileData profile,
     VoidCallback onKycSuccess,
   ) {
+    final int? currentKycId = _getAgenId(profile);
+
+    // 🔍 LOG DEBUG AWAL DIALOG SUSPENDED
+    debugPrint('==================================================');
+    debugPrint('[GATEKEEPER] Menampilkan Dialog Suspended...');
+    debugPrint('Data ID Agen Terbaca  : $currentKycId');
+    debugPrint('Data Nama Agen Terbaca: ${profile.name}');
+    debugPrint('==================================================');
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -360,10 +385,21 @@ class KycGatekeeperModal {
                   onPressed: () {
                     if (ModalRoute.of(dialogContext)?.isCurrent == true) {
                       Navigator.of(dialogContext).pop();
+                      
+                      debugPrint('[GATEKEEPER] Menampilkan Kebijakan Privasi Kemitraan...');
+                      
                       KycPrivacyAgreementModal.show(
                         context,
                         onAccept: () {
-                          _showMultiStepForm(context, onKycSuccess);
+                          debugPrint('[GATEKEEPER] Klik Lanjutkan Diterima. Mengarahkan Ke Form Utama...');
+                          
+                          // 🟢 OPER DATA KE PARAMETER YANG SUDAH RESMI DI DEFINISIKAN
+                          _showMultiStepForm(
+                            context,
+                            onKycSuccess,
+                            kycId: currentKycId,
+                            profileData: profile,
+                          );
                         },
                       );
                     }

@@ -7,14 +7,14 @@ class VisitDetailModal {
       case 'disetujui':
       case 'approved':
       case 'sukses':
-        return Colors.black; 
+        return Colors.black;
       case 'menunggu':
       case 'pending':
-        return const Color(0xFF666666); 
+        return const Color(0xFF666666);
       case 'dibatalkan':
       case 'cancelled':
       case 'cancel':
-        return const Color(0xFFE52525); 
+        return const Color(0xFFE52525);
       default:
         return const Color(0xFF8E8E93);
     }
@@ -46,13 +46,11 @@ class VisitDetailModal {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- HEADER SECTION ---
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 20,
                       ),
-                      // PERBAIKAN: Pindahkan border ke dalam BoxDecoration
                       decoration: const BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
@@ -83,7 +81,6 @@ class VisitDetailModal {
                               ),
                             ],
                           ),
-                          // Status Badge
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -109,14 +106,12 @@ class VisitDetailModal {
                       ),
                     ),
 
-                    // --- CONTENT SECTION ---
                     Flexible(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Nama Konsumen
                             _buildModernDataTile(
                               icon: Icons.person_outline_rounded,
                               label: "Nama Konsumen",
@@ -124,7 +119,6 @@ class VisitDetailModal {
                             ),
                             const SizedBox(height: 12),
 
-                            // Grid Info: Tipe Layanan & Waktu Temu
                             Row(
                               children: [
                                 Expanded(
@@ -147,7 +141,6 @@ class VisitDetailModal {
                             ),
                             const SizedBox(height: 12),
 
-                            // Informasi Unit Mobil (Jika ada)
                             if (item.car != null) ...[
                               Container(
                                 width: double.infinity,
@@ -188,13 +181,12 @@ class VisitDetailModal {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.center,
                                       children: [
-                                        // Gambar Cover Mobil di Sebelah Paling Kiri
                                         ClipRRect(
                                           borderRadius: BorderRadius.circular(
                                             8,
                                           ),
                                           child: Image.network(
-                                            item.car!.carCover,
+                                            item.car!.carCover ?? '',
                                             width: 52,
                                             height: 52,
                                             fit: BoxFit.cover,
@@ -217,7 +209,6 @@ class VisitDetailModal {
                                           ),
                                         ),
                                         const SizedBox(width: 14),
-                                        // Teks Nama & Plat Mobil di Sebelah Kanan Gambar
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment:
@@ -239,9 +230,7 @@ class VisitDetailModal {
                                                   fontFamily: 'Montserrat',
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.w800,
-                                                  color: Color(
-                                                    0xFFE52525,
-                                                  ), // Aksen Merah untuk Nomor Plat
+                                                  color: Color(0xFFE52525),
                                                   letterSpacing: 0.5,
                                                 ),
                                               ),
@@ -256,7 +245,6 @@ class VisitDetailModal {
                               const SizedBox(height: 12),
                             ],
 
-                            // Catatan Keterangan
                             _buildModernDataTile(
                               icon: Icons.notes_rounded,
                               label: 'Catatan / Keterangan',
@@ -269,7 +257,6 @@ class VisitDetailModal {
                       ),
                     ),
 
-                    // --- FOOTER BUTTON SECTION ---
                     Padding(
                       padding: const EdgeInsets.only(
                         left: 24,

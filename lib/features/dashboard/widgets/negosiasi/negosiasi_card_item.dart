@@ -22,7 +22,7 @@ class NegotiationItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color statusColor = item.status.toUpperCase() == 'APPROVED'
+    Color statusColor = item.status.toUpperCase() == 'ACC_CEO'
         ? Colors.green
         : (item.status.toUpperCase() == 'REJECTED'
               ? NegotiationTheme.colorRed

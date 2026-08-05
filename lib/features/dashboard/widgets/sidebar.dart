@@ -68,6 +68,12 @@ class Sidebar extends StatelessWidget {
 
             _buildDrawerItem(
               context: context,
+              icon: Icons.payment,
+              title: 'Transaksi'
+            ),
+
+            _buildDrawerItem(
+              context: context,
               icon: Icons.person_rounded,
               title: "Profil",
             ),

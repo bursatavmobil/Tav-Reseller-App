@@ -13,11 +13,13 @@ import '../../providers/car_detail_provider.dart';
 class CarImageSlider extends StatefulWidget {
   final List<dynamic> images;
   final String carName;
+  final String status;
 
   const CarImageSlider({
     super.key,
     required this.images,
     required this.carName,
+    required this.status,
   });
 
   @override
@@ -83,7 +85,7 @@ class _CarImageSliderState extends State<CarImageSlider> {
 
     Directory? downloadDir;
     String folderLabel = "";
-    
+
     if (Platform.isAndroid) {
       downloadDir = Directory('/storage/emulated/0/Download');
       folderLabel = "Penyimpanan Internal > Download";
@@ -97,7 +99,10 @@ class _CarImageSliderState extends State<CarImageSlider> {
     }
 
     if (downloadDir == null) {
-      _showCustomSnackBar('Gagal mengakses penyimpanan perangkat.', isSuccess: false);
+      _showCustomSnackBar(
+        'Gagal mengakses penyimpanan perangkat.',
+        isSuccess: false,
+      );
       return;
     }
 
@@ -122,7 +127,9 @@ class _CarImageSliderState extends State<CarImageSlider> {
             };
 
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               backgroundColor: Colors.white,
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -320,7 +327,11 @@ class _CarImageSliderState extends State<CarImageSlider> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.folder_open_rounded, size: 16, color: Color(0xFFE52320)),
+                      Icon(
+                        Icons.folder_open_rounded,
+                        size: 16,
+                        color: Color(0xFFE52320),
+                      ),
                       SizedBox(width: 6),
                       Text(
                         "Lokasi Penyimpanan:",
@@ -338,7 +349,8 @@ class _CarImageSliderState extends State<CarImageSlider> {
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey[700],
-                      fontFamily: 'Courier', // Font bergaya monospace untuk path agar rapi
+                      fontFamily:
+                          'Courier', // Font bergaya monospace untuk path agar rapi
                     ),
                   ),
                 ],
@@ -351,7 +363,9 @@ class _CarImageSliderState extends State<CarImageSlider> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF222222),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 onPressed: () => Navigator.pop(context),
@@ -411,6 +425,39 @@ class _CarImageSliderState extends State<CarImageSlider> {
                   },
                 ),
               ),
+
+              if (widget.status.toLowerCase() == 'booking')
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.5), // Efek gelap tipis
+                    child: Center(
+                      child: Transform.rotate(
+                        angle: -0.2, // Membuat teks agak miring modis
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white, width: 3),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            "BOOKED",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              fontFamily: 'Montserrat',
+                              letterSpacing: 4,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
               Positioned(
                 right: 16,
                 top: 16,

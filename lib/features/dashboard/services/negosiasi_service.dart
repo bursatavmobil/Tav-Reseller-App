@@ -1,4 +1,7 @@
+import 'dart:io'; // Pastikan import dart:io ditambahkan untuk tipe File
+
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:reseller_app_tav/features/dashboard/models/negosiasi_chat_response_model.dart';
 import 'package:reseller_app_tav/features/dashboard/models/negosiasi_counter_response_model.dart';
 import 'package:reseller_app_tav/features/dashboard/models/negosiasi_response_model.dart';
@@ -20,7 +23,6 @@ class NegotiationService {
 
   static const String _tokenKey = 'auth_token';
 
-  // Mendapatkan token untuk otentikasi API header
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
@@ -173,7 +175,6 @@ class NegotiationService {
     }
   }
 
-  /// 5. PERBAIKAN: GET RIWAYAT CHAT DALAM ROOM NEGOSIASI
   Future<List<NegotiationChatItem>> getNegotiationChats(
     int negotiationId,
   ) async {
@@ -202,20 +203,43 @@ class NegotiationService {
     int? id,
     String? pesan,
     int? nominal,
+    File? gambarFile,
   }) async {
     try {
       final token = await _getToken();
+      dynamic payload;
+      Map<String, dynamic> headers = {'Authorization': 'Bearer $token'};
 
-      final Map<String, dynamic> body = {
-        if (id != null) 'id': id,
-        if (pesan != null) 'pesan': pesan,
-        if (nominal != null) 'nominal': nominal,
-      };
+      if (gambarFile != null) {
+        headers['Content-Type'] = 'multipart/form-data';
+
+        final String fileName = gambarFile.path.split('/').last;
+        payload = FormData.fromMap({
+          if (id != null) 'id': id,
+          if (pesan != null) 'pesan': pesan,
+          if (nominal != null) 'nominal': nominal,
+          'gambar': await MultipartFile.fromFile(
+            gambarFile.path,
+            filename: fileName,
+          ),
+        });
+
+        debugPrint('[Service] Mengirim data via Multipart (File: $fileName)');
+      } else {
+        headers['Content-Type'] = 'application/json';
+        payload = {
+          if (id != null) 'id': id,
+          if (pesan != null) 'pesan': pesan,
+          if (nominal != null) 'nominal': nominal,
+        };
+
+        debugPrint('📡 [Service] Mengirim data via JSON Standard');
+      }
 
       final response = await _dio.post(
         'agen/negotiation/$negotiationId/chat',
-        data: body,
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        data: payload,
+        options: Options(headers: headers),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -273,6 +297,270 @@ class NegotiationService {
       final errorMsg =
           e.response?.data['text'] ?? 'Gagal menghapus pesan chat.';
       throw Exception(errorMsg);
+    }
+  }
+  
+
+  Future<Map<String, dynamic>?> uploadChatFile({
+    required String path,
+    required File file,
+  }) async {
+    try {
+      final token = await _getToken();
+      final String fileName = file.path.split('/').last;
+
+      final FormData formData = FormData();
+
+      formData.fields.add(MapEntry("path", path));
+
+      formData.files.add(
+        MapEntry(
+          "files[]",
+          await MultipartFile.fromFile(file.path, filename: fileName),
+        ),
+      );
+      /* 
+      SETUP SAAT DIBUTUHKAN MULTIPLE UPLOAD
+      for (var file dalam listFiles) {
+          formData.files.add(
+          MapEntry("files[]", await MultipartFile.fromFile(file.path, filename: ...)),
+        );
+      } */
+
+      debugPrint("[DIO UPLOAD] Menembak URL Upload Asset secara independen...");
+
+      // final response = await Dio().post(
+      //   "https://xbc.tavmobil.co.id/api/v1/file/upload",
+      //   data: formData,
+      //   options: Options(
+      //     headers: {
+      //       "Accept": "application/json",
+      //       if (token != null) "Authorization": "Bearer $token",
+      //     },
+      //   ),
+      // );
+
+      final response = await _dio.post(
+        'file/upload',
+        data: formData,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint("[DIO UPLOAD SUCCESS]: ${response.data['text']}");
+        return response.data;
+      } else {
+        throw Exception(response.data['text'] ?? 'Gagal mengunggah file.');
+      }
+    } on DioException catch (e) {
+      final errorMsg =
+          e.response?.data['text'] ??
+          'Terjadi kesalahan HTTP saat mengunggah berkas.';
+      debugPrint(
+        "[DIO UPLOAD ERROR]: $errorMsg (Status Code: ${e.response?.statusCode})",
+      );
+      throw Exception(errorMsg);
+    } catch (e) {
+      debugPrint("[LOCAL UPLOAD ERROR]: $e");
+      return null;
+    }
+  }
+
+  // AMBIL SEMUA DATA TRANSAKSI AGEN
+  Future<NegotiationResponseModel> getAllTransactions({
+    int page = 1,
+    int perPage = 10,
+    String? searchCarOrBidder,
+  }) async {
+    try {
+      final token = await _getToken();
+
+      final Map<String, dynamic> queryParams = {
+        'page': page,
+        'perpage': perPage,
+      };
+
+      if (searchCarOrBidder != null && searchCarOrBidder.isNotEmpty) {
+        queryParams['search[car_or_bidder]'] = searchCarOrBidder;
+      }
+
+      final response = await _dio.get(
+        'agen/transaksi', // Endpoint sesuai instruksi
+        queryParameters: queryParams,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return NegotiationResponseModel.fromJson(response.data);
+      } else {
+        throw Exception(
+          response.data['text'] ?? 'Gagal mengambil data transaksi.',
+        );
+      }
+    } on DioException catch (e) {
+      final errorMsg =
+          e.response?.data['text'] ?? 'Terjadi kesalahan jaringan transaksi.';
+      throw Exception(errorMsg);
+    }
+  }
+
+  //  AMBIL DETAIL KUSUS TRANSAKSI AGEN
+  Future<NegotiationResult> getDetailTransaction(int id) async {
+    try {
+      final token = await _getToken();
+      final response = await _dio.get(
+        'agen/transaksi/$id', // Endpoint detail transaksi
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decodedData = response.data;
+        if (decodedData['status'] == true) {
+          return NegotiationResult.fromJson(decodedData['data']);
+        } else {
+          throw Exception(
+            decodedData['text'] ?? 'Gagal mengambil detail transaksi.',
+          );
+        }
+      } else {
+        throw Exception(
+          response.data['text'] ?? 'Gagal mengambil detail transaksi.',
+        );
+      }
+    } on DioException catch (e) {
+      final errorMsg =
+          e.response?.data['text'] ??
+          'Terjadi kesalahan jaringan detail transaksi.';
+      throw Exception(errorMsg);
+    }
+  }
+
+  Future<Response> getAllCustomers({
+    int page = 1,
+    int perPage = 10,
+    String? searchName,
+  }) async {
+    try {
+      final token = await _getToken();
+      final Map<String, dynamic> queryParams = {
+        'page': page,
+        'perpage': perPage,
+      };
+
+      if (searchName != null && searchName.isNotEmpty) {
+        queryParams['search[name]'] = searchName;
+      }
+
+      return await _dio.get(
+        'agen/customer',
+        queryParameters: queryParams,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // UPSERT CUSTOMER
+  Future<Response> saveCustomer({
+    String? id,
+    required String fullName,
+    required String phone,
+    required String email,
+    required String address,
+    File? fotoKtp,
+  }) async {
+    try {
+      final token = await _getToken();
+
+      Map<String, dynamic> mapData = {
+        if (id != null) 'id': id,
+        'full_name': fullName,
+        'phone': phone,
+        'email': email,
+        'address': address,
+      };
+
+      if (fotoKtp != null) {
+        String fileName = fotoKtp.path.split('/').last;
+        mapData['foto_ktp'] = await MultipartFile.fromFile(
+          fotoKtp.path,
+          filename: fileName,
+        );
+      }
+
+      FormData formData = FormData.fromMap(mapData);
+
+      return await _dio.post(
+        'agen/customer',
+        data: formData,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> sendPaymentRequest({
+    required int transactionId,
+    required int customerId,
+  }) async {
+    try {
+      final token = await _getToken();
+
+      final Map<String, dynamic> body = {'user_id': customerId};
+
+      final String fullUrl =
+          "${_dio.options.baseUrl}agen/transaksi/$transactionId/send-payment";
+      debugPrint("==================== API REQUEST INFO ====================");
+      debugPrint("METHOD       : POST");
+      debugPrint("ENDPOINT URL  : $fullUrl");
+      debugPrint(
+        "AUTH TOKEN   : ${token != null ? 'Bearer ${token.substring(0, 15)}...' : 'NULL'}",
+      );
+      debugPrint("REQUEST BODY  : $body");
+      debugPrint(" ========================================================");
+      // ==============================================================================
+
+      final response = await _dio.post(
+        'agen/transaksi/$transactionId/send-payment',
+        data: body,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      // ====================  [DEBUG] BACKEND HTTP RESPONSE SUCCESS ====================
+      debugPrint(
+        " ==================== API RESPONSE SUCCESS ====================",
+      );
+      debugPrint(" STATUS CODE  : ${response.statusCode}");
+      debugPrint(" RESPONSE DATA : ${response.data}");
+      debugPrint(
+        " ==============================================================",
+      );
+      // ==================================================================================
+
+      return response;
+    } on DioException catch (e) {
+      // ====================  [DEBUG] BACKEND HTTP RESPONSE ERROR ====================
+      debugPrint(
+        " ==================== API RESPONSE ERROR ====================",
+      );
+      debugPrint(" ERROR TYPE   : ${e.type}");
+      debugPrint(" STATUS CODE  : ${e.response?.statusCode}");
+      debugPrint(" ERROR BODY   : ${e.response?.data}");
+      debugPrint(
+        " ============================================================",
+      );
+      // ================================================================================
+      rethrow;
+    } catch (e) {
+      debugPrint(" [LOCAL EXCEPTION] Terjadi crash lokal pada service: $e");
+      rethrow;
     }
   }
 }

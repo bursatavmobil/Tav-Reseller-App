@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reseller_app_tav/features/dashboard/models/visit_schedule_model.dart';
@@ -29,108 +31,127 @@ class VisitHistoryList extends StatelessWidget {
       case 'dibatalkan':
       case 'cancelled':
       case 'cancel':
-        return const Color(0xFFE52525);
+        return const Color(0xFF8E8E8E);
       default:
         return const Color(0xFF8E8E93);
     }
   }
 
   void _confirmCancel(BuildContext context, int id) {
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE52525).withOpacity(0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Color(0xFFE52525),
-                  size: 28,
+      barrierDismissible: true,
+      barrierLabel: '',
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+      transitionBuilder: (dialogContext, anim1, anim2, child) {
+        return Transform.scale(
+          scale: CurvedAnimation(parent: anim1, curve: Curves.bounceOut).value,
+          child: FadeTransition(
+            opacity: anim1,
+            child: AlertDialog(
+              backgroundColor: const Color(0xFF1A1A1A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: const Color(0xFFE52525).withOpacity(0.4),
+                  width: 1.5,
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Batalkan Kunjungan',
-                style: TextStyle(
-                  fontFamily: 'Montserrat',
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                  color: Color(0xFF1A1A1A),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Apakah Anda yakin ingin membatalkan rencana jadwal kunjungan ini?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Montserrat',
-                  fontSize: 13,
-                  color: Color(0xFF666666),
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFCCCCCC)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: const StadiumBorder(),
-                      ),
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text(
-                        'Kembali',
-                        style: TextStyle(
-                          fontFamily: 'Montserrat',
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+              title: Row(
+                children: const [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Color(0xFFE52525),
+                    size: 22,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE52525),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: const StadiumBorder(),
-                      ),
-                      onPressed: () async {
-                        Navigator.pop(dialogContext);
-                        await context
-                            .read<VisitScheduleProvider>()
-                            .cancelSchedule(id);
-                      },
-                      child: const Text(
-                        'Ya, Batal',
-                        style: TextStyle(
-                          fontFamily: 'Montserrat',
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  SizedBox(width: 10),
+                  Text(
+                    "Batal Kunjungan",
+                    style: TextStyle(
+                      fontFamily: 'Montserrat',
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ],
               ),
-            ],
+              content: const Text(
+                "Apakah Anda yakin ingin membatalkan rencana jadwal kunjungan ini?",
+                style: TextStyle(
+                  fontFamily: 'Montserrat',
+                  color: Color(0xFF8E8E93),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
+                ),
+              ),
+              actionsPadding: const EdgeInsets.only(
+                right: 16,
+                bottom: 16,
+                left: 16,
+              ),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF2C2C2E)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          "Kembali",
+                          style: TextStyle(
+                            fontFamily: 'Montserrat',
+                            color: Color(0xFF8E8E93),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(dialogContext);
+                          await context
+                              .read<VisitScheduleProvider>()
+                              .cancelSchedule(id);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE52525),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          "Ya, Batalkan",
+                          style: TextStyle(
+                            fontFamily: 'Montserrat',
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -159,154 +180,191 @@ class VisitHistoryList extends StatelessWidget {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
+        final String currentStatus = item.status.toLowerCase().trim();
+        final bool isCancelled =
+            currentStatus == 'dibatalkan' ||
+            currentStatus == 'cancelled' ||
+            currentStatus == 'cancel';
+
         final bool isCanCancel =
-            item.status.toLowerCase() == 'menunggu' ||
-            item.status.toLowerCase() == 'pending';
+            (currentStatus == 'aktif' || currentStatus == 'pending') &&
+            !isCancelled;
+        final Color statusColor = _getStatusColor(item.status);
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isCancelled ? const Color(0xFFF4F5F6) : Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFEAEAEA), width: 1),
+            border: Border.all(
+              color: isCancelled
+                  ? const Color(0xFFE1E3E6)
+                  : const Color(0xFFEAEAEA),
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withOpacity(isCancelled ? 0.01 : 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(14.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+          child: InkWell(
+            onTap: () => VisitDetailModal.show(context, item),
+            borderRadius: BorderRadius.circular(14),
+            child: Stack(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(
-                                item.status,
-                              ).withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              item.status.toUpperCase(),
-                              style: TextStyle(
-                                fontFamily: 'Montserrat',
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: _getStatusColor(item.status),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              item.tipe,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
+                Positioned(
+                  top: 6,
+                  left: -26,
+                  child: Transform.rotate(
+                    angle: -math.pi / 4,
+                    child: Container(
+                      width: 90,
+                      height: 20,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        item.namaKonsumen,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Text(
+                        item.status.toUpperCase(),
                         style: const TextStyle(
                           fontFamily: 'Montserrat',
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          color: Color(0xFF1A1A1A),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                      if (item.car != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          "${item.car!.name} (${item.car!.noPlat.toUpperCase()})",
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'Montserrat',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF666666),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time_rounded,
-                            size: 12,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "${item.tanggal} • ${item.jam}",
-                            style: const TextStyle(
-                              fontFamily: 'Montserrat',
-                              fontSize: 11,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 44.0,
+                    top: 14.0,
+                    right: 14.0,
+                    bottom: 14.0,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.tipe.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Montserrat',
+                                backgroundColor: Colors.transparent,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 10,
+                                letterSpacing: 0.5,
+                                color: isCancelled
+                                    ? const Color(0xFF8E8E93)
+                                    : const Color(0xFF666666),
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 6),
+                            Text(
+                              item.namaKonsumen,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Montserrat',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: isCancelled
+                                    ? const Color(0xFF666666)
+                                    : const Color(0xFF1A1A1A),
+                              ),
+                            ),
+                            if (item.car != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                "${item.car!.name} (${item.car!.noPlat.toUpperCase()})",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: 'Montserrat',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isCancelled
+                                      ? const Color(0xFF8E8E93)
+                                      : const Color(0xFF666666),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time_rounded,
+                                  size: 12,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${item.tanggal} • ${item.jam}",
+                                  style: const TextStyle(
+                                    fontFamily: 'Montserrat',
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!isCancelled) ...[
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit_note_rounded,
+                                color: Colors.black87,
+                                size: 24,
+                              ),
+                              tooltip: 'Edit Kunjungan',
+                              onPressed: () => onEdit(item),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                          if (isCanCancel) ...[
+                            const SizedBox(height: 12),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.cancel_presentation_rounded,
+                                color: Color(0xFFE52525),
+                                size: 20,
+                              ),
+                              tooltip: 'Batalkan Kunjungan',
+                              onPressed: () => _confirmCancel(context, item.id),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
                         ],
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.visibility_outlined,
-                        color: Colors.black87,
-                        size: 20,
-                      ),
-                      tooltip: 'Lihat Detail',
-                      onPressed: () => VisitDetailModal.show(context, item),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.edit_note_rounded,
-                        color: Colors.black87,
-                        size: 22,
-                      ),
-                      tooltip: 'Edit Kunjungan',
-                      onPressed: () => onEdit(item),
-                    ),
-                    if (isCanCancel)
-                      IconButton(
-                        icon: const Icon(
-                          Icons.cancel_presentation_rounded,
-                          color: Color(0xFFE52525),
-                          size: 20,
-                        ),
-                        tooltip: 'Batalkan Kunjungan',
-                        onPressed: () => _confirmCancel(context, item.id),
-                      ),
-                  ],
                 ),
               ],
             ),

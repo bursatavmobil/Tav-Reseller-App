@@ -1,3 +1,5 @@
+import 'package:reseller_app_tav/features/dashboard/models/transaksi_response_model.dart';
+
 class NegotiationResponseModel {
   final bool status;
   final String code;
@@ -64,14 +66,16 @@ class NegotiationResult {
   final String bidder;
   final String bidderPhone;
   final int startingPrice;
-  final int negotiatedPrice;
+  int negotiatedPrice;
   final String status;
   final String paymentType;
   final String? createdAt;
   final String? updatedAt;
   final String? statusNote;
   final NegotiationCar? car;
+  final int? customerId;
   final NegotiationAgen? agen;
+  final AgenTransaksiModel? agenTransaksi;
 
   NegotiationResult({
     required this.id,
@@ -86,7 +90,9 @@ class NegotiationResult {
     this.updatedAt,
     this.statusNote,
     this.car,
+    this.customerId,
     this.agen,
+    this.agenTransaksi,
   });
 
   factory NegotiationResult.fromJson(Map<String, dynamic> json) {
@@ -103,8 +109,12 @@ class NegotiationResult {
       updatedAt: json['updated_at'],
       statusNote: json['status_note'],
       car: json['car'] != null ? NegotiationCar.fromJson(json['car']) : null,
+      customerId: json['customer_id'] ?? 0,
       agen: json['agen'] != null
           ? NegotiationAgen.fromJson(json['agen'])
+          : null,
+      agenTransaksi: json['agen_transaksi'] != null
+          ? AgenTransaksiModel.fromJson(json['agen_transaksi'])
           : null,
     );
   }
@@ -113,6 +123,7 @@ class NegotiationResult {
 class NegotiationCar {
   final int id;
   final String nomorRangka;
+  final String noPlat;
   final bool isLelang;
   final int nominalPembelian;
   final int creditPrice;
@@ -122,6 +133,7 @@ class NegotiationCar {
   NegotiationCar({
     required this.id,
     required this.nomorRangka,
+    required this.noPlat,
     required this.isLelang,
     required this.nominalPembelian,
     required this.creditPrice,
@@ -134,6 +146,7 @@ class NegotiationCar {
       id: json['id'] ?? 0,
       carName: json['name'] ?? '',
       nomorRangka: json['nomor_rangka'] ?? '',
+      noPlat: json['no_plat'] ?? '',
       isLelang: json['is_lelang'] ?? false,
       nominalPembelian: json['nominal_pembelian'] ?? 0,
       creditPrice: json['credit_price'] ?? 0,

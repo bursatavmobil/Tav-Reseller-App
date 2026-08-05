@@ -1,5 +1,5 @@
 name: reseller_app_tav
-description: "A new Flutter project."
+description: "Reller App Tav Mobil Indonesia"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.5+7
+version: 1.0.8+10
 
 environment:
   sdk: ^3.12.1
@@ -47,9 +47,12 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   socket_io_client: ^3.1.6
   flutter_dotenv: ^6.0.1
-  share_plus: ^13.2.0
+  share_plus: ^12.0.2
   flutter_downloader: ^1.12.0
   flutter_cache_manager: ^3.4.1
+  upgrader: ^13.5.0
+  file_picker: ^8.3.3
+  lottie: ^3.5.1
 
 dev_dependencies:
   flutter_test:
@@ -85,6 +88,7 @@ flutter:
     - .env
     - assets/images/
     - assets/icons/
+    - assets/animation/
     # - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -3,8 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionManager {
   static const String _keyLastActivity = 'last_activity_timestamp';
-  static const int _sessionTimeoutDuration =
-      60 * 60 * 1000; 
+
+  // Sesi timeout tetap 1 jam (60 menit * 60 detik * 1000 milidetik)[cite: 11]
+  static const int _sessionTimeoutDuration = 60 * 60 * 1000;
+
   static Future<void> updateLastActivity() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -16,20 +18,37 @@ class SessionManager {
     }
   }
 
-  static Future<bool> isSessionExpired() async {
+  /// Memeriksa apakah sesi expired berdasarkan waktu ATAU ketiadaan token fisik
+  /// Tambahkan parameter [hasToken] yang dikirim dari AuthApiService
+  static Future<bool> isSessionExpired(bool hasToken) async {
     try {
+      // 💡 PERBAIKAN PRODUCTION 1: Jika token di local storage kosong,
+      // sesi HARUS dianggap expired tanpa perlu peduli dengan durasi waktu.
+      if (!hasToken) {
+        debugPrint(
+          '[SESSION MANAGER] Token fisik tidak ditemukan. Sesi Expired.',
+        );
+        return true;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final int? lastActivity = prefs.getInt(_keyLastActivity);
 
       if (lastActivity == null) {
-        debugPrint(
-          '[SESSION MANAGER] Aktivitas terakhir kosong, anggap sesi baru/perlu login.',
-        );
+        debugPrint('[SESSION MANAGER] Aktivitas terakhir kosong, perlu login.');
         return true;
       }
 
       final int currentTime = DateTime.now().millisecondsSinceEpoch;
       final int timeDifference = currentTime - lastActivity;
+
+      // 💡 PERBAIKAN PRODUCTION 2: Antisipasi jika user mengubah jam HP secara manual ke masa lalu
+      if (timeDifference < 0) {
+        debugPrint(
+          '[SESSION MANAGER] Deteksi ketidaksesuaian waktu lokal HP. Sesi direset.',
+        );
+        return true;
+      }
 
       final bool expired = timeDifference > _sessionTimeoutDuration;
       debugPrint(

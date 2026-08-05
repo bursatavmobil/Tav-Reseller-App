@@ -13,6 +13,10 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  // --- TAMBAHAN BARU: State untuk menyimpan ID User ---
+  int? _userId;
+  int? get userId => _userId;
+
   String? _userName;
   String? _userPhotoUrl;
   String? get userName => _userName;
@@ -49,7 +53,7 @@ class AuthProvider extends ChangeNotifier {
                 _setLoading(false);
               },
             );
-            _googleSignIn.attemptLightweightAuthentication();
+            // _googleSignIn.attemptLightweightAuthentication();
           }),
     );
   }
@@ -62,22 +66,59 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> checkExistingSession() async {
     _setLoading(true);
     try {
-      final bool isExpired = await SessionManager.isSessionExpired();
+      final String? token = await _apiService.getToken();
+      final bool hasToken = token != null && token.isNotEmpty;
+
+      final bool isExpired = await SessionManager.isSessionExpired(hasToken);
       if (isExpired) {
-        debugPrint('[AUTH PROVIDER] Sesi lokal terdeteksi expired.');
+        debugPrint(
+          '[AUTH PROVIDER] Sesi lokal terdeteksi expired atau token kosong.',
+        );
         await logout();
         return false;
       }
 
-      final String? token = await _apiService.getToken();
-      if (token == null || token.isEmpty) {
+      if (token!.contains('|') || token == HeaderAuthDummy.dummyToken) {
+        debugPrint(
+          '========= [DEV MANUAL AUTH] DETEKSI SESI MANUAL: BYPASS VERIFIKASI NATIVE GOOGLE =========',
+        );
+
+        final String possibleIdStr = token.split('|').first;
+        _userId = int.tryParse(possibleIdStr) ?? 999;
+
+        try {
+          // 🟢 AMBIL DATA PROFIL ASLI DARI BACKEND
+          // Daripada pakai placeholder Unsplash, kita tembak API verifyToken agar backend memberikan name & gavatar yang valid dari DB.
+          final response = await _apiService.verifyToken(token);
+          if (response['status'] == true) {
+            final userData = response['data'];
+            _userName = userData?['name'] ?? 'Reseller Partner';
+            _userPhotoUrl = userData?['gavatar'];
+          } else {
+            _userName = "Reseller Manual (Dev)";
+            _userPhotoUrl =
+                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150";
+          }
+        } catch (e) {
+          debugPrint(
+            '[SESSION DEV WARNING] Gagal fetch profil riil, menggunakan fallback dummy: $e',
+          );
+          _userName = "Reseller Manual (Dev)";
+          _userPhotoUrl =
+              "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150";
+        }
+
+        await SessionManager.updateLastActivity();
         _setLoading(false);
-        return false;
+        notifyListeners();
+        return true;
       }
 
       final response = await _apiService.verifyToken(token);
       if (response['status'] == true) {
         final userData = response['data'];
+
+        _userId = userData?['id'];
         _userName = userData?['name'] ?? 'Reseller Partner';
         _userPhotoUrl = userData?['gavatar'];
 
@@ -145,6 +186,9 @@ class AuthProvider extends ChangeNotifier {
           await _apiService.saveToken(appToken);
           await SessionManager.updateLastActivity();
 
+          // --- TAMBAHAN BARU: Simpan User ID dari Google Auth ---
+          _userId = response['data']?['id'];
+
           _userName =
               user.displayName ??
               response['data']?['name'] ??
@@ -169,6 +213,7 @@ class AuthProvider extends ChangeNotifier {
         _setLoading(false);
       }
     } else {
+      _userId = null; // Reset ID jika sign out
       _userName = null;
       _userPhotoUrl = null;
       notifyListeners();
@@ -214,6 +259,9 @@ class AuthProvider extends ChangeNotifier {
       await _apiService.saveToken(token);
       await SessionManager.updateLastActivity();
 
+      // --- TAMBAHAN BARU: Berikan dummy user ID untuk bypass ---
+      _userId = 999;
+
       _userName = "Reseller Terotentikasi (Dummy)";
       _userPhotoUrl =
           "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150";
@@ -244,6 +292,10 @@ class AuthProvider extends ChangeNotifier {
 
       if (response['status'] == true) {
         final userData = response['data'];
+
+        // --- TAMBAHAN BARU: Simpan User ID setelah registrasi berhasil ---
+        _userId = userData?['id'];
+
         _userName = userData?['name'] ?? 'Reseller Partner';
         _userPhotoUrl = userData?['gavatar'];
 
@@ -283,29 +335,51 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (response['status'] == true) {
-        final userData = response['data'];
-        _userName = userData?['name'] ?? 'Reseller Partner';
-        _userPhotoUrl = userData?['gavatar'];
+        // 🟢 EKSTRAK APPLICATION TOKEN DARI RESPONSE BACKEND LOG IN MANUAL
+        final String? appToken =
+            response['token'] ?? response['data']?['token'];
 
-        await SessionManager.updateLastActivity();
+        if (appToken != null && appToken.isNotEmpty) {
+          // 🟢 SIMPAN TOKEN FISIK KE STORAGE AGAR SESSION TETAP AKTIF
+          await _apiService.saveToken(appToken);
 
-        debugPrint(
-          '[AUTH PROVIDER] Login berhasil untuk: ${userData?['email']}',
-        );
-        triggerAlert(
-          'Login berhasil! Selamat datang ${userData?['name']}',
-          true,
-        );
+          // 🟢 INITIALIZE SESSION ACTIVITY TIMESTAMP
+          await SessionManager.updateLastActivity();
 
-        _setLoading(false);
-        return true;
+          final userData = response['data'];
+          _userId = userData?['id'];
+          _userName = userData?['name'] ?? 'Reseller Partner';
+          _userPhotoUrl = userData?['gavatar'];
+
+          debugPrint('======================================================');
+          debugPrint('[DEV MANUAL AUTH SUCCESS] Sesi Berhasil Dibuat!');
+          debugPrint('[DEV MANUAL AUTH SUCCESS] User ID    : $_userId');
+          debugPrint('[DEV MANUAL AUTH SUCCESS] User Name  : $_userName');
+          debugPrint(
+            '[DEV MANUAL AUTH SUCCESS] App Token  : ${appToken.substring(0, 10)}...',
+          );
+          debugPrint('======================================================');
+
+          triggerAlert('Login berhasil! Selamat datang $_userName', true);
+
+          _setLoading(false);
+          notifyListeners();
+          return true;
+        } else {
+          throw Exception(
+            'Token otentikasi tidak ditemukan dalam response server.',
+          );
+        }
       }
 
       _setLoading(false);
       return false;
     } catch (e) {
-      debugPrint('[AUTH PROVIDER ERROR] Gagal login: $e');
-      triggerAlert('Gagal Login: ${e.toString()}', false);
+      debugPrint('[AUTH PROVIDER ERROR] Gagal login manual & setup sesi: $e');
+      triggerAlert(
+        'Gagal Login: ${e.toString().replaceAll('Exception: ', '')}',
+        false,
+      );
       _setLoading(false);
       return false;
     }
@@ -323,6 +397,8 @@ class AuthProvider extends ChangeNotifier {
         '[AUTH PROVIDER ERROR] Gagal membersihkan sesi google client: $e',
       );
     } finally {
+      // --- TAMBAHAN BARU: Reset state user ID ---
+      _userId = null;
       _userName = null;
       _userPhotoUrl = null;
       _setLoading(false);
@@ -349,6 +425,15 @@ class AuthProvider extends ChangeNotifier {
         },
       );
     });
+  }
+
+  void updateSessionProfile({required String name, required String? photoUrl}) {
+    _userName = name;
+    _userPhotoUrl = photoUrl;
+    notifyListeners(); // Memicu rebuild Navbar, Sidebar, dan UI lainnya secara instan
+    debugPrint(
+      '[AUTH PROVIDER UPDATE] State profil sukses diperbarui dari sesi eksternal.',
+    );
   }
 
   void triggerAlert(String message, bool isSuccess) {

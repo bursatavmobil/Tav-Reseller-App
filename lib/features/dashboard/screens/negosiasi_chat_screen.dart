@@ -15,7 +15,7 @@ class NegosiasiChatScreen extends StatefulWidget {
 class _NegosiasiChatScreenState extends State<NegosiasiChatScreen> {
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 1;
-  final int _perPage = 3; // Menampilkan 3 data per halaman sesuai permintaan
+  final int _perPage = 3; 
 
   @override
   void initState() {

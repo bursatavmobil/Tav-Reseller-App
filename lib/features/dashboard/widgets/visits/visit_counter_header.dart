@@ -18,22 +18,31 @@ class VisitCounterHeader extends StatelessWidget {
           _buildCardCounter(
             title: "Aktif",
             count: aktif,
-            accentColor: const Color(0xFF666666), 
-            icon: Icons.hourglass_empty_rounded,
+            textColor: Colors.white,
+            bgColor: const Color(0xFF1A1A1A),
+            borderColor: const Color(0xFFD4AF37),
+            dotColor: const Color(0xFFD4AF37),
+            icon: Icons.bolt_rounded,
           ),
           const SizedBox(width: 12),
           _buildCardCounter(
             title: "Selesai",
             count: selesai,
-            accentColor: Colors.black,
-            icon: Icons.check_circle_outline_rounded,
+            textColor: const Color(0xFF1A1A1A),
+            bgColor: Colors.white,
+            borderColor: const Color(0xFFD4AF37),
+            dotColor: const Color(0xFFD4AF37),
+            icon: Icons.verified_rounded,
           ),
           const SizedBox(width: 12),
           _buildCardCounter(
             title: "Batal",
             count: batal,
-            accentColor: const Color(0xFFE52525), 
-            icon: Icons.cancel_outlined,
+            textColor: const Color(0xFF1A1A1A),
+            bgColor: Colors.white,
+            borderColor: const Color(0xFFEFEFEF),
+            dotColor: const Color(0xFFE52525),
+            icon: Icons.dangerous_rounded,
           ),
         ],
       ),
@@ -43,16 +52,26 @@ class VisitCounterHeader extends StatelessWidget {
   Widget _buildCardCounter({
     required String title,
     required int count,
-    required Color accentColor,
+    required Color textColor,
+    required Color bgColor,
+    required Color borderColor,
+    required Color dotColor,
     required IconData icon,
   }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xEAEAEA), width: 1.5),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,37 +81,39 @@ class VisitCounterHeader extends StatelessWidget {
               children: [
                 Text(
                   title.toUpperCase(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Montserrat',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
                     letterSpacing: 0.8,
-                    color: Color(0xFF8E8E93),
+                    color: textColor.withOpacity(
+                      textColor == Colors.white ? 0.6 : 0.4,
+                    ),
                   ),
                 ),
-                Icon(icon, size: 14, color: accentColor),
+                Icon(icon, size: 16, color: dotColor),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Row(
               textBaseline: TextBaseline.alphabetic,
               crossAxisAlignment: CrossAxisAlignment.baseline,
               children: [
                 Text(
                   count.toString(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Montserrat',
-                    fontSize: 26,
+                    fontSize: 28,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF1A1A1A),
+                    color: textColor,
                   ),
                 ),
                 const SizedBox(width: 4),
                 Container(
-                  width: 5,
-                  height: 5,
+                  width: 6,
+                  height: 6,
                   decoration: BoxDecoration(
-                    color: accentColor,
+                    color: dotColor,
                     shape: BoxShape.circle,
                   ),
                 ),

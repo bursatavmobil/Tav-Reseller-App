@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reseller_app_tav/features/dashboard/providers/dashboard_provider.dart';
-import 'package:reseller_app_tav/features/dashboard/widgets/profile/kyc_multistepform_modal.dart';
+import 'package:reseller_app_tav/features/dashboard/widgets/profile/kyc_getkeeper_modal.dart';
 
 class KycRestrictionWidget extends StatelessWidget {
   final String message;
@@ -71,20 +71,32 @@ class KycRestrictionWidget extends StatelessWidget {
                   ),
                   elevation: 2,
                 ),
+                // Mengunci tombol saat sedang memuat data
                 onPressed: dashboardProvider.isLoading
                     ? null
-                    : () {
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => KycMultiStepFormModal(
-                            onSuccess: () async {
+                    : () async {
+                        // 1. Panggil API untuk memuat ulang data dashboard / profil terbaru
+                        await context
+                            .read<DashboardProvider>()
+                            .loadDashboardData();
+
+                        if (!context.mounted) return;
+
+                        final currentProfile = context
+                            .read<DashboardProvider>()
+                            .profile;
+
+                        if (currentProfile != null) {
+                          KycGatekeeperModal.checkAndShow(
+                            context,
+                            currentProfile,
+                            onKycSuccess: () async {
                               await context
                                   .read<DashboardProvider>()
                                   .loadDashboardData();
                             },
-                          ),
-                        );
+                          );
+                        }
                       },
                 icon: dashboardProvider.isLoading
                     ? const SizedBox(

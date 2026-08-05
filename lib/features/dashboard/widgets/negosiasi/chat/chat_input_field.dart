@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:reseller_app_tav/features/auth/providers/auth_provider.dart';
+import 'package:reseller_app_tav/features/dashboard/providers/dashboard_provider.dart';
 import 'package:reseller_app_tav/features/dashboard/providers/negosiasi_provider.dart';
 
 class ChatInputField extends StatefulWidget {
@@ -42,9 +43,49 @@ class _ChatInputFieldState extends State<ChatInputField> {
         setState(() {
           _selectedImage = File(image.path);
         });
+        debugPrint("📸 [UI] Gambar dipilih: ${image.path}");
       }
     } catch (e) {
-      debugPrint("Gagal memilih gambar: $e");
+      debugPrint("❌ 📸 [UI Error] Gagal memilih gambar: $e");
+    }
+  }
+
+  void _executeDirectSendNominal(int nominal) async {
+    final provider = Provider.of<NegotiationProvider>(context, listen: false);
+    final dashboardProvider = Provider.of<DashboardProvider>(
+      context,
+      listen: false,
+    );
+    final String namaAgenAktif = dashboardProvider.profile?.name ?? "Agen";
+    final int currentUserId = context.read<AuthProvider>().userId ?? 0;
+
+    try {
+      await provider.sendChatMessage(
+        negotiationId: widget.negotiationId,
+        currentUserId: currentUserId,
+        pengirimName: namaAgenAktif,
+        pesan: null,
+        nominal: nominal,
+        gambarFile: null,
+      );
+
+      if (provider.errorMessage != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengirim nominal: ${provider.errorMessage}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan lokal: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -103,23 +144,44 @@ class _ChatInputFieldState extends State<ChatInputField> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Batal'),
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
-                  ElevatedButton(
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE52525),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
                     onPressed: () {
                       final String cleanText = nominalController.text
                           .replaceAll(RegExp(r'[^0-9]'), '');
-                      setState(() {
-                        _selectedNominal = int.tryParse(cleanText);
-                      });
-                      Navigator.pop(context);
+                      final int? targetNominal = int.tryParse(cleanText);
+
+                      if (targetNominal != null && targetNominal > 0) {
+                        Navigator.pop(context);
+                        _executeDirectSendNominal(targetNominal);
+                      }
                     },
-                    child: const Text(
-                      'Simpan',
-                      style: TextStyle(color: Colors.white),
+                    icon: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                    label: const Text(
+                      'Send',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -134,37 +196,57 @@ class _ChatInputFieldState extends State<ChatInputField> {
 
   void _handleSendMessage() async {
     final String text = _textController.text.trim();
-    if (text.isEmpty && _selectedNominal == null && _selectedImage == null)
+
+    if (text.isEmpty && _selectedNominal == null && _selectedImage == null) {
       return;
-
-    final provider = Provider.of<NegotiationProvider>(context, listen: false);
-    _textController.clear();
-
-    String? finalPesan;
-    if (_selectedImage != null) {
-      List<int> imageBytes = await _selectedImage!.readAsBytes();
-      String base64Image = base64Encode(imageBytes);
-      if (text.isNotEmpty) {
-        finalPesan = "DATA_IMAGE:$base64Image||TEXT_MSG:$text";
-      } else {
-        finalPesan = "DATA_IMAGE:$base64Image";
-      }
-    } else if (text.isNotEmpty) {
-      finalPesan = text;
     }
 
-    final int? nominalToSend = _selectedNominal;
+    final provider = Provider.of<NegotiationProvider>(context, listen: false);
+    final dashboardProvider = Provider.of<DashboardProvider>(
+      context,
+      listen: false,
+    );
+    final String namaAgenAktif = dashboardProvider.profile?.name ?? "Agen";
 
+    final String currentText = text;
+    final int? nominalToSend = _selectedNominal;
+    final File? imageToSend = _selectedImage;
+    final int currentUserId = context.read<AuthProvider>().userId ?? 0;
+
+    _textController.clear();
     setState(() {
       _selectedNominal = null;
       _selectedImage = null;
     });
 
-    await provider.sendChatMessage(
-      negotiationId: widget.negotiationId,
-      pesan: finalPesan,
-      nominal: nominalToSend,
-    );
+    try {
+      await provider.sendChatMessage(
+        negotiationId: widget.negotiationId,
+        currentUserId: currentUserId,
+        pengirimName: namaAgenAktif,
+        pesan: currentText.isNotEmpty ? currentText : null,
+        nominal: nominalToSend,
+        gambarFile: imageToSend,
+      );
+
+      if (provider.errorMessage != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengirim: ${provider.errorMessage}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan lokal: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -196,7 +278,10 @@ class _ChatInputFieldState extends State<ChatInputField> {
                       top: 2,
                       right: 2,
                       child: GestureDetector(
-                        onTap: () => setState(() => _selectedImage = null),
+                        onTap: () {
+                          debugPrint("🗑 [UI] Gambar dibatalkan oleh user");
+                          setState(() => _selectedImage = null);
+                        },
                         child: Container(
                           padding: const EdgeInsets.all(2),
                           decoration: const BoxDecoration(
@@ -247,10 +332,12 @@ class _ChatInputFieldState extends State<ChatInputField> {
                     color: Color(0xFF222222),
                   ),
                 ),
-
                 const Spacer(),
                 GestureDetector(
-                  onTap: () => setState(() => _selectedNominal = null),
+                  onTap: () {
+                    debugPrint("🗑 [UI] Nominal dibatalkan oleh user");
+                    setState(() => _selectedNominal = null);
+                  },
                   child: const Icon(
                     Icons.cancel_rounded,
                     color: Colors.grey,

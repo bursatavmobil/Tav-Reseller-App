@@ -6,6 +6,7 @@ import 'package:reseller_app_tav/features/dashboard/screens/negosiasi_chat_scree
 import 'package:reseller_app_tav/features/dashboard/screens/profile_page.dart';
 import 'package:reseller_app_tav/features/dashboard/screens/saldo_screen.dart';
 import 'package:reseller_app_tav/features/dashboard/screens/stock_car_screen.dart';
+import 'package:reseller_app_tav/features/dashboard/screens/transaksi_screen.dart';
 import 'package:reseller_app_tav/features/dashboard/screens/visit_schedule_screen.dart';
 import 'package:reseller_app_tav/features/dashboard/widgets/chart/penjualan_chart.dart';
 import 'package:reseller_app_tav/features/dashboard/widgets/dashboard_overview_card.dart';
@@ -53,7 +54,6 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _initDashboardAndVerifyKyc() async {
     try {
-      // Menunggu animasi Fade selesai seutuhnya sebelum mengisi data
       await Future.delayed(const Duration(milliseconds: 350));
       if (!mounted) return;
 
@@ -66,6 +66,23 @@ class _MainLayoutState extends State<MainLayout> {
       final currentProfile = dashboardProvider.profile;
 
       if (currentProfile != null) {
+        // 🟢 AMBIL DARI PROVIDER, BUKAN DARI PROFILE DATA
+        final String? realAvatarUrl = dashboardProvider.userAvatarUrl;
+
+        if (realAvatarUrl != null && realAvatarUrl.isNotEmpty) {
+          final authProvider = context.read<AuthProvider>();
+
+          // Panggil fungsi setter resmi yang aman dari pembatasan OOP
+          authProvider.updateSessionProfile(
+            name: currentProfile.name,
+            photoUrl: realAvatarUrl,
+          );
+
+          debugPrint(
+            '[MAIN LAYOUT SINKRON] Berhasil memperbarui data profil Google ke AuthProvider via Setter.',
+          );
+        }
+
         if (!_isKycChecked) {
           setState(() {
             _isKycChecked = true;
@@ -103,7 +120,6 @@ class _MainLayoutState extends State<MainLayout> {
           pageBuilder: (context, animation, secondaryAnimation) =>
               const LoginScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // PERBAIKAN ANIMASI OUT: Menggunakan Fade murni linier tanpa bounce/slide meluncur
             return FadeTransition(
               opacity: CurvedAnimation(parent: animation, curve: Curves.linear),
               child: child,
@@ -178,6 +194,15 @@ class _MainLayoutState extends State<MainLayout> {
           );
         }
         return const NegosiasiChatScreen();
+
+      case 'Transaksi':
+        if (isNotApproved) {
+          return const KycRestrictionWidget(
+            message:
+                "Fitur Transaksi hanya dapat diakses oleh mitra akun yang telah terverifikasi.",
+          );
+        }
+        return const TransaksiScreen();
 
       case 'Profil':
         return const ProfilePage();

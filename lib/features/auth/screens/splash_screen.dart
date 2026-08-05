@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 import 'package:reseller_app_tav/core/theme/app_assets.dart';
 import 'package:reseller_app_tav/features/auth/providers/auth_provider.dart';
 import 'package:reseller_app_tav/features/auth/screens/login_screen.dart';
+import 'package:reseller_app_tav/features/auth/screens/widget/force_upgrade_widget.dart';
 import 'package:reseller_app_tav/features/dashboard/screens/main_layout.dart';
+import 'package:upgrader/upgrader.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -44,21 +46,67 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateToNextRoute() async {
-    await Future.delayed(const Duration(milliseconds: 2500));
+    await Future.delayed(const Duration(milliseconds: 2000));
     if (!mounted) return;
 
+    // LANGKAH 1: PERIKSA SESI LOKAL TERLEBIH DAHULU SEBELUM UPGRADE DIALOG
     final authProvider = context.read<AuthProvider>();
-
     final bool hasValidSession = await authProvider.checkExistingSession();
+    if (!mounted) return;
 
+    // LANGKAH 2: JIKA SESI VALID, BYPASS DIALOG DAN LANGSUNG REDIRECT KE MAINLAYOUT
+    if (hasValidSession) {
+      debugPrint('[SPLASH SCREEN] Sesi Valid Ditemukan (Lokal Dev/Prod)! Langsung bypass ke MainLayout.');
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainLayout()),
+        (route) => false,
+      );
+      return; // Selesai, hentikan eksekusi kode di bawah agar upgrader tidak menahan layar
+    }
+
+    //  LANGKAH 3: JIKA SESI KOSONG, BARU JALANKAN PROSEDUR CEK UPDATE / LOGIN SCREEN
+    final upgrader = Upgrader(
+      debugDisplayAlways: false, 
+      debugLogging: true,
+      minAppVersion: '1.0.8', 
+    );
+
+    await upgrader.initialize();
+
+    if (upgrader.shouldDisplayUpgrade()) {
+      debugPrint(
+        '[SPLASH SCREEN] Sesi Kosong & Terdeteksi update! Menampilkan Dialog Modern.',
+      );
+      if (!mounted) return;
+
+      ForceUpgradeDialog.show(
+        context,
+        upgrader: upgrader,
+        version: '1.0.7',
+        isForceUpdate: upgrader.belowMinAppVersion(),
+        onDismissOptional: () {
+          _executeSessionNavigation();
+        },
+      );
+      return; 
+    }
+
+    _executeSessionNavigation();
+  }
+
+  Future<void> _executeSessionNavigation() async {
     if (_isNavigating) return;
     _isNavigating = true;
+
+    final authProvider = context.read<AuthProvider>();
+    final bool hasValidSession = await authProvider.checkExistingSession();
 
     if (hasValidSession) {
       debugPrint('[SPLASH SCREEN] Sesi Valid! Mengarah ke MainLayout.');
       if (mounted) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const MainLayout()),
+          (route) => false,
         );
       }
     } else {
@@ -66,10 +114,125 @@ class _SplashScreenState extends State<SplashScreen>
         '[SPLASH SCREEN] Sesi Kosong/Expired! Mengarah ke LoginScreen.',
       );
       if (mounted) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
         );
       }
+    }
+  }
+
+  void _showCustomUpgradeDialog(
+    BuildContext context, {
+    required Upgrader upgrader,
+    required String version,
+    required bool isForceUpdate,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: !isForceUpdate,
+      builder: (context) {
+        return PopScope(
+          canPop: !isForceUpdate,
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.system_update_rounded,
+                    size: 50,
+                    color: Color(0xFFE52525),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Pembaruan Aplikasi!',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Versi $version telah tersedia di Play Store. Silakan lakukan pembaruan untuk menikmati fitur terbaru.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      if (!isForceUpdate) ...[
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.black),
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _proceedToNextRouteAfterDismiss();
+                            },
+                            child: const Text(
+                              'Nanti',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () {
+                            upgrader.sendUserToAppStore();
+                          },
+                          child: const Text(
+                            'Update',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _proceedToNextRouteAfterDismiss() async {
+    final authProvider = context.read<AuthProvider>();
+    final bool hasValidSession = await authProvider.checkExistingSession();
+    if (!mounted) return;
+
+    if (hasValidSession) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainLayout()),
+        (route) => false,
+      );
+    } else {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
     }
   }
 

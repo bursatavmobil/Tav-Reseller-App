@@ -1,36 +1,67 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:reseller_app_tav/core/theme/negosiasi_theme.dart';
+import 'package:reseller_app_tav/features/auth/screens/widget/thousand_sparator.dart';
 import 'package:reseller_app_tav/features/dashboard/models/negosiasi_response_model.dart';
 import 'package:reseller_app_tav/features/dashboard/providers/negosiasi_provider.dart';
+import 'package:reseller_app_tav/features/dashboard/providers/profile_provider.dart';
+import 'package:reseller_app_tav/features/dashboard/screens/room_chat_screen.dart';
 import 'package:reseller_app_tav/features/dashboard/services/stock_car_service.dart';
 import 'package:reseller_app_tav/features/dashboard/widgets/negosiasi/not_support_credit_dialog.dart';
 
 import '../../../../core/widget/cutsom_alert_widget.dart';
 
 class CreateNegotiationDialog {
-  // Tambahkan parameter onSuccess untuk men-trigger refresh data list
   static void show(
     BuildContext context, {
     NegotiationResult? editItem,
     VoidCallback? onSuccess,
+    Map<String, dynamic>? initialCar,
   }) {
+    if (initialCar != null) {
+      debugPrint("DEBUG NEGO CAR: ${initialCar.toString()}");
+    }
+
     final stockCarService = StockCarService();
 
-    int? selectedCarId = editItem?.carId;
+    final profileProvider = Provider.of<ProfileProvider>(
+      context,
+      listen: false,
+    );
+    final profileData = profileProvider.profileData;
+
+    final String defaultAgentName = (profileData?['name'] ?? '')
+        .toString()
+        .toUpperCase();
+    final String defaultAgentPhone =
+        profileData?['no_whatsapp'] ??
+        profileData?['no_wa'] ??
+        profileData?['phone'] ??
+        '';
+    int? selectedCarId = editItem?.carId ?? initialCar?['id'];
     String selectedCarName =
-        editItem?.car?.carName ?? "Pilih Mobil yang Akan Ditawar";
-    dynamic selectedCarCashPrice = editItem?.car?.nominalPembelian;
+        editItem?.car?.carName ??
+        initialCar?['name'] ??
+        "Pilih Mobil yang Akan Ditawar";
+
+    dynamic selectedCarCashPrice =
+        editItem?.car?.nominalPembelian ?? initialCar?['cash_price'];
+
     dynamic selectedCarCreditPrice =
-        editItem?.car?.creditPrice ?? editItem?.car?.nominalPembelian;
+        editItem?.car?.creditPrice ??
+        editItem?.car?.nominalPembelian ??
+        initialCar?['credit_price'] ??
+        initialCar?['cash_price'];
+
     String selectedPaymentType = editItem?.paymentType ?? 'CASH';
 
     final bidderController = TextEditingController(
-      text: editItem?.bidder ?? '',
+      text: editItem?.bidder ?? defaultAgentName,
     );
     final phoneController = TextEditingController(
-      text: editItem?.bidderPhone ?? '',
+      text: editItem?.bidderPhone ?? defaultAgentPhone,
     );
     final priceController = TextEditingController(
       text: editItem?.negotiatedPrice.toString() ?? '',
@@ -433,6 +464,14 @@ class CreateNegotiationDialog {
                         bidderController,
                         "Nama Penawar",
                         TextInputType.text,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: [
+                          TextInputFormatter.withFunction((oldValue, newValue) {
+                            return newValue.copyWith(
+                              text: newValue.text.toUpperCase(),
+                            );
+                          }),
+                        ],
                       ),
                       _buildField(
                         phoneController,
@@ -443,6 +482,10 @@ class CreateNegotiationDialog {
                         priceController,
                         "Nominal Nego Harga",
                         TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          ThousandsSeparatorInputFormatter(),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -504,15 +547,15 @@ class CreateNegotiationDialog {
                     ),
                   ),
                 ),
+
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: NegotiationTheme.colorRed,
+                    backgroundColor: NegotiationTheme.colorRed, 
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8), 
                     ),
                   ),
                   onPressed: () async {
-                    // 1. Validasi form dengan alert
                     if (selectedCarId == null ||
                         bidderController.text.isEmpty ||
                         priceController.text.isEmpty) {
@@ -520,57 +563,72 @@ class CreateNegotiationDialog {
                         context,
                         "Lengkapi semua data & pilih unit mobil terlebih dahulu!",
                         false,
-                      );
+                      ); 
                       return;
                     }
 
-                    // Ambil provider sebelum proses await
+                    final cleanPriceString = priceController.text.replaceAll(
+                      RegExp(r'[^0-9]'),
+                      '',
+                    ); 
+                    final int negotiatedPriceValue =
+                        int.tryParse(cleanPriceString) ?? 0; 
+
                     final provider = Provider.of<NegotiationProvider>(
                       context,
                       listen: false,
-                    );
+                    ); 
 
-                    // 2. Submit data
-                    final success = await provider.submitNegotiation(
-                      id: editItem
-                          ?.id, // Kirim id jika ada, ini kunci agar menjadi update
-                      carId: selectedCarId!,
-                      bidder: bidderController.text,
-                      bidderPhone: phoneController.text,
-                      negotiatedPrice: int.parse(priceController.text),
-                      paymentType: selectedPaymentType,
-                    );
+                    final newlyCreatedNegotiation = await provider
+                        .submitNegotiation(
+                          id: editItem?.id, 
+                          carId: selectedCarId!, 
+                          bidder: bidderController.text, 
+                          bidderPhone: phoneController.text, 
+                          negotiatedPrice: negotiatedPriceValue, 
+                          paymentType: selectedPaymentType, 
+                        );
 
-                    // 3. Pastikan context masih ada dan tampilkan respons
                     if (context.mounted) {
                       Navigator.pop(
                         dialogContext,
-                      ); // Tutup dialog input form terlebih dahulu
+                      ); // Tutup dialog input form[cite: 9]
 
-                      if (success) {
+                      if (newlyCreatedNegotiation != null) {
                         CustomAnimatedAlert.show(
                           context,
                           "Berhasil memproses room negosiasi!",
                           true,
-                        );
-
-                        // 4. Panggil onSuccess agar screen parent me-refresh data
+                        ); 
                         if (onSuccess != null) {
-                          onSuccess();
+                          onSuccess(); 
                         }
+                        provider.prepareNewChatRoom(); //
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            settings: const RouteSettings(
+                              name: 'RoomChatScreen',
+                            ), //
+                            builder: (_) => RoomChatScreen(
+                              negotiation: newlyCreatedNegotiation,
+                            ), //[cite: 10]
+                          ),
+                        );
                       } else {
-                        // KUNCI AMBIL PESAN ERROR DARI PROVIDER
                         final errorMsg =
-                            provider.errorMessage ?? "Terjadi kesalahan.";
+                            provider.errorMessage ??
+                            "Terjadi kesalahan."; 
 
-                        // Deteksi spesifik jika respons error berupa kode 422 payment type tidak valid
                         if (errorMsg.toLowerCase().contains("payment type") ||
                             errorMsg.toLowerCase().contains("tidak valid")) {
-                          
-                          CreditNotSupportedDialog.show(context);
+                          CreditNotSupportedDialog.show(context); 
                         } else {
-                        
-                          CustomAnimatedAlert.show(context, errorMsg, false);
+                          CustomAnimatedAlert.show(
+                            context,
+                            errorMsg,
+                            false,
+                          ); 
                         }
                       }
                     }
@@ -582,7 +640,7 @@ class CreateNegotiationDialog {
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Montserrat',
                     ),
-                  ),
+                  ), 
                 ),
               ],
             );
@@ -595,13 +653,18 @@ class CreateNegotiationDialog {
   static Widget _buildField(
     TextEditingController controller,
     String label,
-    TextInputType inputType,
-  ) {
+    TextInputType inputType, {
+    List<TextInputFormatter>? inputFormatters,
+    TextCapitalization textCapitalization =
+        TextCapitalization.none, // 💡 Ditambahkan sebagai parameter opsional
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextField(
         controller: controller,
         keyboardType: inputType,
+        inputFormatters: inputFormatters,
+        textCapitalization: textCapitalization,
         style: const TextStyle(color: Colors.white, fontSize: 13),
         decoration: InputDecoration(
           labelText: label,

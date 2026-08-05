@@ -8,6 +8,9 @@ import 'package:reseller_app_tav/features/dashboard/services/saldo_service.dart'
 class DashboardProvider extends ChangeNotifier {
   final SaldoService _saldoService = SaldoService();
   final ProfileService _profileService = ProfileService();
+  
+  Map<String, dynamic>? _rawProfileJson;
+  Map<String, dynamic>? get rawProfileJson => _rawProfileJson;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -40,6 +43,10 @@ class DashboardProvider extends ChangeNotifier {
   DateTime get selectedMonth => _selectedMonth;
   int get currentDayWindowIndex => _currentDayWindowIndex;
 
+  // Tambahkan satu variabel baru di level atas class DashboardProvider
+  String? _userAvatarUrl;
+  String? get userAvatarUrl => _userAvatarUrl;
+
   Future<void> loadDashboardData() async {
     _isLoading = true;
     _errorMessage = null;
@@ -48,10 +55,19 @@ class DashboardProvider extends ChangeNotifier {
     debugPrint('[DASHBOARD PROVIDER] Memulai loadDashboardData()...');
 
     try {
-      debugPrint('[DASHBOARD PROVIDER] Mengambil data Profile...');
+      debugPrint('[DASHBOARD PROVI  DER] Mengambil data Profile...');
       final profileRaw = await _profileService.fetchProfile();
       _profileData = ProfileResponseModel.fromJson(profileRaw);
 
+      if (profileRaw != null && profileRaw['data'] != null) {
+        _rawProfileJson = profileRaw['data'] as Map<String, dynamic>;
+
+        final Map<String, dynamic> dataJson = profileRaw['data'];
+        _userAvatarUrl =
+            dataJson['gavatar']?.toString() ??
+            dataJson['avatar']?.toString() ??
+            dataJson['photo_url']?.toString();
+      }
       final String currentStatus = (profile?.status ?? 'submission')
           .toLowerCase()
           .trim();
@@ -283,4 +299,3 @@ class DashboardProvider extends ChangeNotifier {
       penjualanHarianGrafikData;
   List<KomisiItem> get riwayatMobilTerjual => _komisiData?.data.result ?? [];
 }
-

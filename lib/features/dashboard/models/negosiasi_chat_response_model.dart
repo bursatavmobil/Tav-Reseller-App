@@ -44,6 +44,8 @@ class NegotiationChatItem {
   final String? approvalName;
   final String pengirimName;
   final String? pengirimFoto;
+  final Map<String, dynamic>?
+  negotiation; // Ditambahkan untuk menangkap objek negotiation
   final List<LogNegotiationChat> logNegotiationChat;
 
   NegotiationChatItem({
@@ -59,6 +61,7 @@ class NegotiationChatItem {
     this.approvalName,
     required this.pengirimName,
     this.pengirimFoto,
+    this.negotiation,
     required this.logNegotiationChat,
   });
 
@@ -88,19 +91,64 @@ class NegotiationChatItem {
           : (int.tryParse(json['user_id_pengirim']?.toString() ?? '') ?? 0),
       waktu: json['waktu']?.toString() ?? '',
       pesan: safeParseString(json['pesan']),
-      nominal: json['nominal'] is int
-          ? json['nominal']
-          : (int.tryParse(json['nominal']?.toString() ?? '') ?? null),
-      isApprove: json['is_approve'] is bool
-          ? json['is_approve']
-          : (json['is_approve']?.toString() == '1' ||
-                json['is_approve']?.toString() == 'true'),
+
+      // Fix: Penanganan nullable nominal yang lebih bersih
+      nominal: json['nominal'] == null
+          ? null
+          : (json['nominal'] is int
+                ? json['nominal']
+                : int.tryParse(json['nominal'].toString())),
+
+      // Fix: Pastikan nilai null dipertahankan untuk tipe bool?
+      isApprove: json['is_approve'] == null
+          ? null
+          : (json['is_approve'] is bool
+                ? json['is_approve']
+                : (json['is_approve']?.toString() == '1' ||
+                      json['is_approve']?.toString() == 'true')),
+
       approvalBy: safeParseString(json['approval_by']),
       typeUser: json['type_user']?.toString() ?? '',
       approvalName: safeParseString(json['approval_name']),
       pengirimName: json['pengirim_name']?.toString() ?? '',
       pengirimFoto: safeParseString(json['pengirim_foto']),
+      negotiation: json['negotiation'] is Map<String, dynamic>
+          ? json['negotiation']
+          : null,
       logNegotiationChat: logs,
+    );
+  }
+
+  // Di dalam class NegotiationChatItem
+  NegotiationChatItem copyWith({
+    int? id,
+    int? negotiationId,
+    int? userIdPengirim,
+    String? waktu,
+    String? pesan,
+    int? nominal,
+    bool? isApprove,
+    String? approvalBy,
+    String? typeUser,
+    String? approvalName,
+    String? pengirimName,
+    String? pengirimFoto,
+    List<LogNegotiationChat>? logNegotiationChat,
+  }) {
+    return NegotiationChatItem(
+      id: id ?? this.id,
+      negotiationId: negotiationId ?? this.negotiationId,
+      userIdPengirim: userIdPengirim ?? this.userIdPengirim,
+      waktu: waktu ?? this.waktu,
+      pesan: pesan ?? this.pesan,
+      nominal: nominal ?? this.nominal,
+      isApprove: isApprove ?? this.isApprove,
+      approvalBy: approvalBy ?? this.approvalBy,
+      typeUser: typeUser ?? this.typeUser,
+      approvalName: approvalName ?? this.approvalName,
+      pengirimName: pengirimName ?? this.pengirimName,
+      pengirimFoto: pengirimFoto ?? this.pengirimFoto,
+      logNegotiationChat: logNegotiationChat ?? this.logNegotiationChat,
     );
   }
 }
@@ -112,6 +160,7 @@ class LogNegotiationChat {
   final String typeUser;
   final bool isRead;
   final String name;
+  String status;
 
   LogNegotiationChat({
     required this.id,
@@ -120,6 +169,7 @@ class LogNegotiationChat {
     required this.typeUser,
     required this.isRead,
     required this.name,
+    required this.status,
   });
 
   factory LogNegotiationChat.fromJson(Map<String, dynamic> json) {
@@ -139,6 +189,10 @@ class LogNegotiationChat {
           : (json['is_read']?.toString() == '1' ||
                 json['is_read']?.toString() == 'true'),
       name: json['name']?.toString() ?? '',
+
+      // Fix: Mengubah evaluasi boolean menjadi evaluasi String, mencegah compile-error (bool to String).
+      // Mengingat status dimutasi di Provider menjadi 'APPROVED' / 'REJECTED', kita pasang default empty string
+      status: json['status']?.toString() ?? '',
     );
   }
 }

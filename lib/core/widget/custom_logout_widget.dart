@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:reseller_app_tav/core/theme/app_assets.dart'; // Import kelas AppAssets
 
 import '../theme/app_theme.dart';
 
@@ -66,16 +67,27 @@ class CustomLogoutDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryButtonContainer.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                color: AppTheme.primaryButtonContainer,
-                size: 32,
+            // Pemanggilan gambar logout.png dari AppAssets
+            SizedBox(
+              height: 90,
+              width: 90,
+              child: Image.asset(
+                AppAssets.imageLogout,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryButtonContainer.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.logout_rounded,
+                      color: AppTheme.primaryButtonContainer,
+                      size: 32,
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 16),
