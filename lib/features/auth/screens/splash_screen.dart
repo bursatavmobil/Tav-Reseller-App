@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
@@ -18,9 +16,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late AnimationController _floatingController;
-  late AnimationController _loadingController;
   late Animation<double> _floatingAnimation;
   bool _isNavigating = false;
 
@@ -33,14 +30,9 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     )..repeat(reverse: true);
 
-    _floatingAnimation = Tween<double>(begin: 0.0, end: 15.0).animate(
+    _floatingAnimation = Tween<double>(begin: 0.0, end: 12.0).animate(
       CurvedAnimation(parent: _floatingController, curve: Curves.easeInOut),
     );
-
-    _loadingController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat();
 
     _navigateToNextRoute();
   }
@@ -49,7 +41,6 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 2000));
     if (!mounted) return;
 
-    
     final upgrader = Upgrader(
       debugDisplayAlways: false,
       debugLogging: true,
@@ -107,124 +98,9 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  void _showCustomUpgradeDialog(
-    BuildContext context, {
-    required Upgrader upgrader,
-    required String version,
-    required bool isForceUpdate,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: !isForceUpdate,
-      builder: (context) {
-        return PopScope(
-          canPop: !isForceUpdate,
-          child: Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            backgroundColor: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.system_update_rounded,
-                    size: 50,
-                    color: Color(0xFFE52525),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Pembaruan Aplikasi!',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Versi $version telah tersedia di Play Store. Silakan lakukan pembaruan untuk menikmati fitur terbaru.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      if (!isForceUpdate) ...[
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.black),
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _proceedToNextRouteAfterDismiss();
-                            },
-                            child: const Text(
-                              'Nanti',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onPressed: () {
-                            upgrader.sendUserToAppStore();
-                          },
-                          child: const Text(
-                            'Update',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _proceedToNextRouteAfterDismiss() async {
-    final authProvider = context.read<AuthProvider>();
-    final bool hasValidSession = await authProvider.checkExistingSession();
-    if (!mounted) return;
-
-    if (hasValidSession) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainLayout()),
-        (route) => false,
-      );
-    } else {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
-  }
-
   @override
   void dispose() {
     _floatingController.dispose();
-    _loadingController.dispose();
     super.dispose();
   }
 
@@ -245,12 +121,12 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
           ),
-          Center(
+          SafeArea(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Spacer(flex: 2),
+                const Spacer(flex: 3),
 
+                // Logo Utama
                 AnimatedBuilder(
                   animation: _floatingAnimation,
                   builder: (context, child) {
@@ -259,26 +135,56 @@ class _SplashScreenState extends State<SplashScreen>
                       child: child,
                     );
                   },
-                  child: SvgPicture.asset(AppAssets.logoReseller, width: 160),
+                  child: SvgPicture.asset(AppAssets.logoReseller, width: 170),
                 ),
 
-                const Spacer(flex: 1),
+                const Spacer(flex: 3),
 
-                AnimatedBuilder(
-                  animation: _loadingController,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: _loadingController.value * 2 * math.pi,
-                      child: child,
-                    );
-                  },
-                  child: CustomPaint(
-                    size: const Size(42, 42),
-                    painter: CustomLoadingPainter(),
+                // Footer Identitas Perusahaan Elegan
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 32.0),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'PT TAV MOBIL INDONESIA',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2.2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 1,
+                            color: const Color(0xFFD4AF37).withOpacity(0.6),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 10),
+                            child: Text(
+                              'TERBESAR DAN TERPERCAYA',
+                              style: TextStyle(
+                                color: Color(0xFFD4AF37),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.8,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 20,
+                            height: 1,
+                            color: const Color(0xFFD4AF37).withOpacity(0.6),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-
-                const Spacer(flex: 1),
               ],
             ),
           ),
@@ -286,39 +192,4 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
-}
-
-class CustomLoadingPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    const double strokeWidth = 3.5;
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - strokeWidth) / 2;
-
-    final bgPaint = Paint()
-      ..color = const Color(0xFF222222)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-    canvas.drawCircle(center, radius, bgPaint);
-
-    final activePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..shader = const SweepGradient(
-        colors: [Color(0xFFE52525), Color(0xFFD4AF37), Color(0xFFE52525)],
-        stops: [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      0,
-      math.pi * 1.5,
-      false,
-      activePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
