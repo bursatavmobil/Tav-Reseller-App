@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:reseller_app_tav/features/dashboard/providers/profile_provider.dart';
 
-class KycFormTabView extends StatelessWidget {
+class KycFormTabView extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final ProfileProvider provider;
 
@@ -26,7 +26,6 @@ class KycFormTabView extends StatelessWidget {
   final File? fotoKtpSelfieFile;
   final File? fotoKK;
 
-  // URL Gambar dari API (S3) jika sudah ada data sebelumnya
   final String? existingFotoKtpUrl;
   final String? existingFotoSelfieUrl;
   final String? existingKKUrl;
@@ -36,10 +35,10 @@ class KycFormTabView extends StatelessWidget {
   final VoidCallback onPickFotoKK;
   final VoidCallback onSubmit;
 
-  // Properti Tambahan untuk Edit Mode
   final bool isEditing;
   final bool hasExistingData;
   final VoidCallback onToggleEdit;
+  final Widget? customBankDropdown;
 
   const KycFormTabView({
     super.key,
@@ -64,6 +63,7 @@ class KycFormTabView extends StatelessWidget {
     this.existingKKUrl,
     this.existingFotoKtpUrl,
     this.existingFotoSelfieUrl,
+    this.customBankDropdown,
     required this.onPickFotoKtp,
     required this.onPickFotoKtpSelfie,
     required this.onPickFotoKK,
@@ -74,15 +74,78 @@ class KycFormTabView extends StatelessWidget {
   });
 
   @override
+  State<KycFormTabView> createState() => _KycFormTabViewState();
+}
+
+class _KycFormTabViewState extends State<KycFormTabView> {
+  OverlayEntry? _overlayEntry;
+
+  void _showBouncingTooltip(BuildContext context, Offset globalPosition) {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+
+    final overlay = Overlay.of(context);
+    _overlayEntry = OverlayEntry(
+      builder: (context) => _BouncingTooltipWidget(
+        position: globalPosition,
+        onDismiss: () {
+          _overlayEntry?.remove();
+          _overlayEntry = null;
+        },
+      ),
+    );
+
+    overlay.insert(_overlayEntry!);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bool isFieldEnabled = !hasExistingData || isEditing;
+    final bool isFieldEnabled = !widget.hasExistingData || widget.isEditing;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Form(
-        key: formKey,
+        key: widget.formKey,
         child: Column(
           children: [
+            // BANNER PETUNJUK DOUBLE TAP EDIT
+            if (widget.hasExistingData && !widget.isEditing)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE52525).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFFE52525).withOpacity(0.2),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.touch_app_outlined,
+                      size: 16,
+                      color: Color(0xFFE52525),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Petunjuk: Ketuk field 2x untuk mulai mengedit berkas KYC.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFE52525),
+                          fontFamily: 'Montserrat',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -104,14 +167,16 @@ class KycFormTabView extends StatelessWidget {
                           fontFamily: 'Montserrat',
                         ),
                       ),
-                      if (hasExistingData)
+                      if (widget.hasExistingData)
                         IconButton(
-                          onPressed: provider.isKycSaving ? null : onToggleEdit,
+                          onPressed: widget.provider.isKycSaving
+                              ? null
+                              : widget.onToggleEdit,
                           icon: Icon(
-                            isEditing
+                            widget.isEditing
                                 ? Icons.close_rounded
                                 : Icons.edit_note_rounded,
-                            color: isEditing
+                            color: widget.isEditing
                                 ? const Color(0xFFE52525)
                                 : const Color(0xFF666666),
                             size: 24,
@@ -125,7 +190,7 @@ class KycFormTabView extends StatelessWidget {
                   _buildInputField(
                     icon: Icons.contact_mail_outlined,
                     title: 'Nomor KTP',
-                    controller: noKtpController,
+                    controller: widget.noKtpController,
                     enabled: isFieldEnabled,
                     keyboardType: TextInputType.number,
                   ),
@@ -144,7 +209,7 @@ class KycFormTabView extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        value: jenisKelamin,
+                        value: widget.jenisKelamin,
                         items: const [
                           DropdownMenuItem(
                             value: 'laki-laki',
@@ -162,7 +227,7 @@ class KycFormTabView extends StatelessWidget {
                           ),
                         ],
                         onChanged: isFieldEnabled
-                            ? onJenisKelaminChanged
+                            ? widget.onJenisKelaminChanged
                             : null,
                         decoration: InputDecoration(
                           isDense: true,
@@ -198,7 +263,7 @@ class KycFormTabView extends StatelessWidget {
                         child: _buildInputField(
                           icon: Icons.location_city,
                           title: 'Tempat Lahir',
-                          controller: tempatLahirController,
+                          controller: widget.tempatLahirController,
                           enabled: isFieldEnabled,
                         ),
                       ),
@@ -207,7 +272,7 @@ class KycFormTabView extends StatelessWidget {
                         child: _buildInputField(
                           icon: Icons.calendar_today,
                           title: 'Tanggal Lahir (YYYY-MM-DD)',
-                          controller: tanggalLahirController,
+                          controller: widget.tanggalLahirController,
                           enabled: isFieldEnabled,
                           keyboardType: TextInputType.datetime,
                         ),
@@ -222,7 +287,7 @@ class KycFormTabView extends StatelessWidget {
                         child: _buildInputField(
                           icon: Icons.pin_drop,
                           title: 'Sub District ID',
-                          controller: subDistrictController,
+                          controller: widget.subDistrictController,
                           enabled: isFieldEnabled,
                           keyboardType: TextInputType.number,
                         ),
@@ -232,7 +297,7 @@ class KycFormTabView extends StatelessWidget {
                         child: _buildInputField(
                           icon: Icons.explore,
                           title: 'RT',
-                          controller: rtController,
+                          controller: widget.rtController,
                           enabled: isFieldEnabled,
                           keyboardType: TextInputType.number,
                         ),
@@ -242,7 +307,7 @@ class KycFormTabView extends StatelessWidget {
                         child: _buildInputField(
                           icon: Icons.explore,
                           title: 'RW',
-                          controller: rwController,
+                          controller: widget.rwController,
                           enabled: isFieldEnabled,
                           keyboardType: TextInputType.number,
                         ),
@@ -254,37 +319,38 @@ class KycFormTabView extends StatelessWidget {
                   _buildInputField(
                     icon: Icons.home_outlined,
                     title: 'Alamat Sesuai KTP',
-                    controller: alamatController,
+                    controller: widget.alamatController,
                     enabled: isFieldEnabled,
                   ),
                   const SizedBox(height: 14),
                   _buildInputField(
                     icon: Icons.phone_callback,
                     title: 'No WhatsApp Darurat',
-                    controller: waDaruratController,
+                    controller: widget.waDaruratController,
                     enabled: isFieldEnabled,
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 14),
 
-                  _buildInputField(
-                    icon: Icons.account_balance_outlined,
-                    title: 'Nama Bank Transfer',
-                    controller: bankController,
-                    enabled: isFieldEnabled,
-                  ),
+                  widget.customBankDropdown ??
+                      _buildInputField(
+                        icon: Icons.account_balance_outlined,
+                        title: 'Nama Bank Transfer',
+                        controller: widget.bankController,
+                        enabled: isFieldEnabled,
+                      ),
                   const SizedBox(height: 14),
                   _buildInputField(
                     icon: Icons.badge_outlined,
                     title: 'Nama Pemilik Rekening',
-                    controller: namaRekeningController,
+                    controller: widget.namaRekeningController,
                     enabled: isFieldEnabled,
                   ),
                   const SizedBox(height: 14),
                   _buildInputField(
                     icon: Icons.credit_card,
                     title: 'Nomor Rekening Bank',
-                    controller: noRekeningController,
+                    controller: widget.noRekeningController,
                     enabled: isFieldEnabled,
                     keyboardType: TextInputType.number,
                   ),
@@ -296,92 +362,50 @@ class KycFormTabView extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
 
-                  // Bagian Picker Image box: Tetap tampil preview di edit maupun non-edit mode
                   GridView.count(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 3, // 3 kolom
+                    crossAxisCount: 3,
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
                     childAspectRatio: 0.85,
                     children: [
                       _buildImagePreviewBox(
                         'Foto KTP',
-                        fotoKtpFile,
-                        existingFotoKtpUrl,
-                        isFieldEnabled ? onPickFotoKtp : null,
+                        widget.fotoKtpFile,
+                        widget.existingFotoKtpUrl,
+                        isFieldEnabled ? widget.onPickFotoKtp : null,
                       ),
                       _buildImagePreviewBox(
                         'KTP+Selfie',
-                        fotoKtpSelfieFile,
-                        existingFotoSelfieUrl,
-                        isFieldEnabled ? onPickFotoKtpSelfie : null,
+                        widget.fotoKtpSelfieFile,
+                        widget.existingFotoSelfieUrl,
+                        isFieldEnabled ? widget.onPickFotoKtpSelfie : null,
                       ),
                       _buildImagePreviewBox(
                         'Foto KK',
-                        fotoKK,
-                        existingKKUrl,
-                        isFieldEnabled ? onPickFotoKK : null,
+                        widget.fotoKK,
+                        widget.existingKKUrl,
+                        isFieldEnabled ? widget.onPickFotoKK : null,
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-                  if (isFieldEnabled)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF27AE60),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onPressed: provider.isKycSaving ? null : onSubmit,
-                        child: provider.isKycSaving
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                hasExistingData
-                                    ? 'Perbarui Dokumen KYC'
-                                    : 'Kirim Dokumen KYC',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Montserrat',
-                                ),
-                              ),
-                      ),
-                    ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 100),
           ],
         ),
       ),
     );
   }
 
-  // Widget Box Preview Image dengan injeksi token header pencegah error HTTP 403 S3
   Widget _buildImagePreviewBox(
     String label,
     File? localFile,
     String? remoteUrl,
     VoidCallback? onTap,
   ) {
-    // Ambil token dari SharedPreferences atau provider jika disimpan di level provider untuk image headers
-    // Untuk berjaga-jaga jika auth_token diperlukan oleh S3 static proxy Anda:
-    final String? token =
-        provider.profileData?['token']; // Pastikan token sistem terjangkau
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -400,7 +424,6 @@ class KycFormTabView extends StatelessWidget {
           borderRadius: BorderRadius.circular(9),
           child: Builder(
             builder: (context) {
-              // 1. Prioritas utama: File lokal yang baru saja difoto/dipilih oleh user
               if (localFile != null) {
                 return Image.file(
                   localFile,
@@ -410,20 +433,14 @@ class KycFormTabView extends StatelessWidget {
                 );
               }
 
-              // 2. Prioritas kedua: URL dari API AWS S3 (Tampil baik di non-edit maupun edit mode)
               if (remoteUrl != null && remoteUrl.isNotEmpty) {
                 return Image.network(
                   remoteUrl,
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,
-                  // Mengatasi HTTP 403 dengan mengirimkan Authorization Header jika dibutuhkan oleh S3 Bucket gateway Anda
-                  headers: {
-                    'Accept': 'application/json',
-                    // Gunakan ini jika backend memvalidasi asset gateway menggunakan auth token app
-                  },
+                  headers: const {'Accept': 'application/json'},
                   errorBuilder: (context, error, stackTrace) {
-                    // Fallback visual jika link S3 kedaluwarsa atau bermasalah temp
                     return Container(
                       color: const Color(0xFFF5F5F5),
                       child: Column(
@@ -447,23 +464,9 @@ class KycFormTabView extends StatelessWidget {
                       ),
                     );
                   },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(0xFFE52525),
-                        ),
-                      ),
-                    );
-                  },
                 );
               }
 
-              // 3. Tampilan awal kosong jika belum ada data sama sekali
               return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -499,62 +502,159 @@ class KycFormTabView extends StatelessWidget {
     required bool enabled,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[500],
-            fontFamily: 'Montserrat',
-            fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTapUp: (details) {
+        if (!enabled) {
+          _showBouncingTooltip(context, details.globalPosition);
+        }
+      },
+      onDoubleTap: () {
+        if (!enabled) widget.onToggleEdit();
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[500],
+              fontFamily: 'Montserrat',
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          enabled: enabled,
-          validator: (v) =>
-              v == null || v.isEmpty ? '$title wajib diisi' : null,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF222222),
-            fontFamily: 'Montserrat',
-            fontWeight: FontWeight.w600,
-          ),
-          decoration: InputDecoration(
-            isDense: true,
-            filled: !enabled,
-            fillColor: enabled ? Colors.white : const Color(0xFFF9F9F9),
-            prefixIcon: Icon(icon, size: 18, color: const Color(0xFF666666)),
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 12,
-              horizontal: 10,
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            enabled: enabled,
+            validator: (v) =>
+                v == null || v.isEmpty ? '$title wajib diisi' : null,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF222222),
+              fontFamily: 'Montserrat',
+              fontWeight: FontWeight.w600,
             ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFEAEAEA)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFCCCCCC)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(
-                color: Color(0xFFE52525),
-                width: 1.5,
+            decoration: InputDecoration(
+              isDense: true,
+              filled: !enabled,
+              fillColor: enabled ? Colors.white : const Color(0xFFF9F9F9),
+              prefixIcon: Icon(icon, size: 18, color: const Color(0xFF666666)),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 12,
+                horizontal: 10,
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFEAEAEA)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFCCCCCC)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: Color(0xFFE52525),
+                  width: 1.5,
+                ),
               ),
             ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE52525)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BouncingTooltipWidget extends StatefulWidget {
+  final Offset position;
+  final VoidCallback onDismiss;
+
+  const _BouncingTooltipWidget({
+    required this.position,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_BouncingTooltipWidget> createState() => _BouncingTooltipWidgetState();
+}
+
+class _BouncingTooltipWidgetState extends State<_BouncingTooltipWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
+    _scaleAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.elasticOut,
+    );
+
+    _controller.forward();
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _controller.reverse().then((_) => widget.onDismiss());
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: widget.position.dx - 100,
+      top: widget.position.dy - 55,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.touch_app, color: Colors.amber, size: 14),
+                SizedBox(width: 6),
+                Text(
+                  'Ketuk 2x untuk edit',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Montserrat',
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

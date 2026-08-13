@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reseller_app_tav/features/dashboard/providers/profile_provider.dart';
 import 'package:reseller_app_tav/features/dashboard/widgets/details/car_image_slider.dart';
+import 'package:reseller_app_tav/features/dashboard/widgets/details/car_leasing_kredit.dart';
 import 'package:reseller_app_tav/features/dashboard/widgets/details/car_price.dart';
 import 'package:reseller_app_tav/features/dashboard/widgets/details/car_share_copywrite.dart';
 import 'package:reseller_app_tav/features/dashboard/widgets/details/car_spesification.dart';
@@ -89,6 +90,8 @@ class CarDetailScreen extends StatelessWidget {
                   CarShareFormat(car: car),
                   const SizedBox(height: 8),
                   CarPriceDetail(car: car, nominalKomisi: infoKomisi),
+                  const SizedBox(height: 8),
+                  CarLeasingDetail(carId: carId),
                   const SizedBox(height: 8),
                   CarSpecification(car: car),
                   const SizedBox(height: 8),

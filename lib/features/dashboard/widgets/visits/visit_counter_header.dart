@@ -22,7 +22,6 @@ class VisitCounterHeader extends StatelessWidget {
             bgColor: const Color(0xFF1A1A1A),
             borderColor: const Color(0xFFD4AF37),
             dotColor: const Color(0xFFD4AF37),
-            icon: Icons.bolt_rounded,
           ),
           const SizedBox(width: 12),
           _buildCardCounter(
@@ -32,7 +31,6 @@ class VisitCounterHeader extends StatelessWidget {
             bgColor: Colors.white,
             borderColor: const Color(0xFFD4AF37),
             dotColor: const Color(0xFFD4AF37),
-            icon: Icons.verified_rounded,
           ),
           const SizedBox(width: 12),
           _buildCardCounter(
@@ -42,7 +40,6 @@ class VisitCounterHeader extends StatelessWidget {
             bgColor: Colors.white,
             borderColor: const Color(0xFFEFEFEF),
             dotColor: const Color(0xFFE52525),
-            icon: Icons.dangerous_rounded,
           ),
         ],
       ),
@@ -56,7 +53,6 @@ class VisitCounterHeader extends StatelessWidget {
     required Color bgColor,
     required Color borderColor,
     required Color dotColor,
-    required IconData icon,
   }) {
     return Expanded(
       child: Container(
@@ -90,8 +86,7 @@ class VisitCounterHeader extends StatelessWidget {
                       textColor == Colors.white ? 0.6 : 0.4,
                     ),
                   ),
-                ),
-                Icon(icon, size: 16, color: dotColor),
+                )
               ],
             ),
             const SizedBox(height: 14),

@@ -49,6 +49,34 @@ class ProfileService {
     }
   }
 
+  Future<List<dynamic>> fetchMasterBank({String search = ''}) async {
+    final String? token = await _getToken();
+    final String endpoint = search.isNotEmpty
+        ? 'master-bank?search[search]=$search'
+        : 'master-bank';
+
+    try {
+      final response = await _dio.get(
+        endpoint,
+        options: Options(
+          headers: {
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+
+      if (response.data['status'] == true) {
+        return response.data['data'] ?? [];
+      } else {
+        return [];
+      }
+    } on DioException catch (e) {
+      debugPrint("Error fetch master bank: $e");
+      return [];
+    }
+  }
+
   Future<Map<String, dynamic>> updateProfile({
     required String name,
     required String noWhatsapp,

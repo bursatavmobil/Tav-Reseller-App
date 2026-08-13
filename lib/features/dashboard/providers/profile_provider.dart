@@ -92,6 +92,7 @@ class ProfileProvider extends ChangeNotifier {
     required File? fotoKK,
   }) async {
     _isKycSaving = true;
+    _errorMessage = null; // Reset error message
     notifyListeners();
 
     try {
@@ -114,12 +115,21 @@ class ProfileProvider extends ChangeNotifier {
       );
 
       _isKycSaving = false;
-      notifyListeners();
-      return response['status'] == true;
+
+      if (response['status'] == true) {
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage =
+            response['text'] ??
+            response['message'] ??
+            'Gagal memverifikasi data KYC ke server.';
+        notifyListeners();
+        return false;
+      }
     } catch (e) {
       _isKycSaving = false;
-      notifyListeners();
-      return false;
+      rethrow;
     }
   }
 }

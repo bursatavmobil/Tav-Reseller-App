@@ -12,7 +12,7 @@ import 'package:reseller_app_tav/features/dashboard/models/profile_response_mode
 import 'package:reseller_app_tav/features/dashboard/providers/dashboard_provider.dart';
 import 'package:reseller_app_tav/features/dashboard/providers/profile_provider.dart';
 import 'package:reseller_app_tav/features/dashboard/services/api_config.dart';
-import 'package:reseller_app_tav/features/dashboard/providers/negosiasi_provider.dart';
+import 'package:reseller_app_tav/features/dashboard/widgets/profile/ocr_modal_validation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -71,6 +71,9 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
   List<dynamic> _cities = [];
   List<dynamic> _districts = [];
   List<dynamic> _subDistricts = [];
+  List<dynamic> _banks = [];
+
+  dynamic _selectedBank;
 
   int? _selectedProvinceId;
   int? _selectedCityId;
@@ -81,11 +84,13 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
   bool _isLoadingCity = false;
   bool _isLoadingDistrict = false;
   bool _isLoadingSubDistrict = false;
+  bool _isLoadingBank = false;
 
   @override
   void initState() {
     super.initState();
     _fetchProvinces();
+    _fetchBanks();
     _checkAndAutofillExistingData();
   }
 
@@ -93,12 +98,14 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
     debugPrint('==================================================');
     debugPrint('[FORM KYC INIT DEBUG] Menguji Data Masuk...');
     debugPrint('Parameter widget.kycId      : ${widget.kycId}');
-    debugPrint('Parameter widget.profileData : ${widget.profileData != null ? "TERSEDIA" : "NULL"}');
+    debugPrint(
+      'Parameter widget.profileData : ${widget.profileData != null ? "TERSEDIA" : "NULL"}',
+    );
     debugPrint('==================================================');
 
     if (widget.profileData != null) {
       final p = widget.profileData!;
-      
+
       setState(() {
         // 1. Ambil data dasar dari ProfileData strongly-typed (Aman & Sukses)
         _namaCtrl.text = p.name.toUpperCase();
@@ -110,56 +117,94 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
           if (p.agenData!.namaDiRekening.isNotEmpty) {
             _namaCtrl.text = p.agenData!.namaDiRekening.toUpperCase();
           }
-          debugPrint('[FORM KYC AUTOFILL] Autofill Bank        : ${_bankCtrl.text}');
-          debugPrint('[FORM KYC AUTOFILL] Autofill No Rekening : ${_noRekeningCtrl.text}');
+          debugPrint(
+            '[FORM KYC AUTOFILL] Autofill Bank        : ${_bankCtrl.text}',
+          );
+          debugPrint(
+            '[FORM KYC AUTOFILL] Autofill No Rekening : ${_noRekeningCtrl.text}',
+          );
         }
 
         // 2. AMBIL FIELD DINAMIS VIA MAP JSON DI DASHBOARD PROVIDER (Mencegah Class ProfileData diakses langsung)
         try {
-          final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
-          final Map<String, dynamic>? rawJson = dashboardProvider.rawProfileJson;
+          final dashboardProvider = Provider.of<DashboardProvider>(
+            context,
+            listen: false,
+          );
+          final Map<String, dynamic>? rawJson =
+              dashboardProvider.rawProfileJson;
 
           if (rawJson != null) {
-            debugPrint('[FORM KYC DYNAMIC] Memulai ekstraksi data dari rawProfileJson...');
-            
+            debugPrint(
+              '[FORM KYC DYNAMIC] Memulai ekstraksi data dari rawProfileJson...',
+            );
+
             // 🟢 GUNAKAN rawJson KANAN/KIRI, JANGAN MENYENTUH VARIABEL LAIN
             if (rawJson['nomor_ktp'] != null || rawJson['nomorKtp'] != null) {
-              _ktpCtrl.text = (rawJson['nomor_ktp'] ?? rawJson['nomorKtp']).toString();
-              debugPrint('[FORM KYC AUTOFILL] KTP Sukses Terbaca : ${_ktpCtrl.text}');
+              _ktpCtrl.text = (rawJson['nomor_ktp'] ?? rawJson['nomorKtp'])
+                  .toString();
+              debugPrint(
+                '[FORM KYC AUTOFILL] KTP Sukses Terbaca : ${_ktpCtrl.text}',
+              );
             }
-            
-            if (rawJson['tempat_lahir'] != null || rawJson['tempatLahir'] != null) {
-              _tempatLahirCtrl.text = (rawJson['tempat_lahir'] ?? rawJson['tempatLahir']).toString().toUpperCase();
-              debugPrint('[FORM KYC AUTOFILL] Tempat Lahir Terbaca: ${_tempatLahirCtrl.text}');
+
+            if (rawJson['tempat_lahir'] != null ||
+                rawJson['tempatLahir'] != null) {
+              _tempatLahirCtrl.text =
+                  (rawJson['tempat_lahir'] ?? rawJson['tempatLahir'])
+                      .toString()
+                      .toUpperCase();
+              debugPrint(
+                '[FORM KYC AUTOFILL] Tempat Lahir Terbaca: ${_tempatLahirCtrl.text}',
+              );
             }
-            
-            if (rawJson['tanggal_lahir'] != null || rawJson['tanggalLahir'] != null) {
-              _tanggalLahirCtrl.text = (rawJson['tanggal_lahir'] ?? rawJson['tanggalLahir']).toString();
+
+            if (rawJson['tanggal_lahir'] != null ||
+                rawJson['tanggalLahir'] != null) {
+              _tanggalLahirCtrl.text =
+                  (rawJson['tanggal_lahir'] ?? rawJson['tanggalLahir'])
+                      .toString();
             }
-            
-            if (rawJson['no_whatsapp_darurat'] != null || rawJson['noWhatsappDarurat'] != null) {
-              _waDaruratCtrl.text = (rawJson['no_whatsapp_darurat'] ?? rawJson['noWhatsappDarurat']).toString();
+
+            if (rawJson['no_whatsapp_darurat'] != null ||
+                rawJson['noWhatsappDarurat'] != null) {
+              _waDaruratCtrl.text =
+                  (rawJson['no_whatsapp_darurat'] ??
+                          rawJson['noWhatsappDarurat'])
+                      .toString();
             }
-            
-            if (rawJson['rt'] != null) _rtCtrl.text = rawJson['rt'].toString().toUpperCase();
-            if (rawJson['rw'] != null) _rwCtrl.text = rawJson['rw'].toString().toUpperCase();
-            
+
+            if (rawJson['rt'] != null)
+              _rtCtrl.text = rawJson['rt'].toString().toUpperCase();
+            if (rawJson['rw'] != null)
+              _rwCtrl.text = rawJson['rw'].toString().toUpperCase();
+
             if (rawJson['alamat'] != null) {
               _alamatCtrl.text = rawJson['alamat'].toString().toUpperCase();
-              debugPrint('[FORM KYC AUTOFILL] Alamat Sukses Terbaca: ${_alamatCtrl.text}');
+              debugPrint(
+                '[FORM KYC AUTOFILL] Alamat Sukses Terbaca: ${_alamatCtrl.text}',
+              );
             }
-            
-            if (rawJson['jenis_kelamin'] != null || rawJson['jenisKelamin'] != null) {
-              _jenisKelamin = (rawJson['jenis_kelamin'] ?? rawJson['jenisKelamin']).toString().toLowerCase();
+
+            if (rawJson['jenis_kelamin'] != null ||
+                rawJson['jenisKelamin'] != null) {
+              _jenisKelamin =
+                  (rawJson['jenis_kelamin'] ?? rawJson['jenisKelamin'])
+                      .toString()
+                      .toLowerCase();
             }
           } else {
-            debugPrint('[FORM KYC WARNING] rawProfileJson di DashboardProvider bernilai NULL.');
+            debugPrint(
+              '[FORM KYC WARNING] rawProfileJson di DashboardProvider bernilai NULL.',
+            );
           }
         } catch (e) {
-          debugPrint('[FORM KYC DYNAMIC ERROR] Gagal memetakan data sekunder: $e');
+          debugPrint(
+            '[FORM KYC DYNAMIC ERROR] Gagal memetakan data sekunder: $e',
+          );
         }
       });
-      
+
       debugPrint('[FORM KYC INIT DEBUG] Selesai memetakan data awal.');
       debugPrint('==================================================');
     }
@@ -269,6 +314,31 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
       debugPrint('Error fetch provinces: $e');
     } finally {
       if (mounted) setState(() => _isLoadingProvince = false);
+    }
+  }
+
+  Future<void> _fetchBanks() async {
+    setState(() => _isLoadingBank = true);
+    try {
+      final dio = await _getDio();
+      final response = await dio.get('master-bank');
+      if (response.data['status'] == true && mounted) {
+        setState(() {
+          _banks = response.data['data'] ?? [];
+          if (_bankCtrl.text.isNotEmpty && _banks.isNotEmpty) {
+            _selectedBank = _banks.firstWhere(
+              (e) =>
+                  e['nama_bank'].toString().toUpperCase() ==
+                  _bankCtrl.text.toUpperCase(),
+              orElse: () => null,
+            );
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetch banks: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingBank = false);
     }
   }
 
@@ -465,14 +535,29 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
   Future<void> _pickImage(String type, ImageSource source) async {
     final pickedFile = await ImagePicker().pickImage(
       source: source,
-      imageQuality: 70,
+      imageQuality:
+          85, // Kualitas ditingkatkan agar OCR membaca teks lebih presisi
     );
-    if (pickedFile != null) {
-      setState(() {
-        if (type == 'KTP') _fotoKtp = File(pickedFile.path);
-        if (type == 'Selfie') _fotoSelfie = File(pickedFile.path);
-        if (type == 'KK') _fotoKK = File(pickedFile.path);
-      });
+
+    if (pickedFile != null && mounted) {
+      File tempFile = File(pickedFile.path);
+
+      // Tampilkan Modal Terpisah Validasi OCR
+      bool? isConfirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) =>
+            OcrValidationModal(imageFile: tempFile, documentType: type),
+      );
+
+      // Jika pengguna mengonfirmasi "Gunakan", simpan gambar ke state form utama
+      if (isConfirmed == true) {
+        setState(() {
+          if (type == 'KTP') _fotoKtp = tempFile;
+          if (type == 'Selfie') _fotoSelfie = tempFile;
+          if (type == 'KK') _fotoKK = tempFile;
+        });
+      }
     }
   }
 
@@ -504,7 +589,6 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
     debugPrint('=== [KYC SUBMIT START] ===');
 
     if (!_formKey.currentState!.validate()) {
-      debugPrint('⚠️ [KYC ERROR]: Validasi Form Gagal.');
       AlertManager.show(
         context,
         'Mohon lengkapi seluruh kolom formulir yang wajib diisi.',
@@ -514,7 +598,6 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
     }
 
     if (_selectedSubDistrictId == null) {
-      debugPrint('⚠️ [KYC ERROR]: SubDistrict ID kosong.');
       AlertManager.show(
         context,
         'Silakan pilih kelurahan/desa terlebih dahulu!',
@@ -539,11 +622,8 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
     };
 
     try {
-      debugPrint(
-        '⏳ [KYC API]: Menghubungi ProfileProvider (Mode: ${widget.kycId != null ? "EDIT/UPDATE" : "CREATE"})...',
-      );
-
-      final success = await context.read<ProfileProvider>().uploadKycData(
+      final profileProv = context.read<ProfileProvider>();
+      final success = await profileProv.uploadKycData(
         kycId: widget.kycId,
         noWhatsappDarurat: payload['noWhatsappDarurat'] as String,
         bank: payload['bank'] as String,
@@ -562,25 +642,36 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
         fotoKK: _fotoKK,
       );
 
-      debugPrint('[KYC API RESPONSE]: success = $success');
-
       if (!mounted) return;
 
       if (success == true) {
-        debugPrint('[KYC SUCCESS]: Pengiriman data KYC berhasil.');
         AlertManager.show(context, 'Data KYC berhasil diperbarui!', true);
         Navigator.pop(context);
         KycSuccessDialog.show(context);
         widget.onSuccess();
       } else {
+        // Tampilkan error spesifik dari errorMessage milik Provider
         AlertManager.show(
           context,
-          'Gagal memverifikasi data KYC ke server.',
+          profileProv.errorMessage ?? 'Gagal memverifikasi data KYC ke server.',
           false,
         );
       }
-    } catch (e, stacktrace) {
-      debugPrint('‼ [KYC EXCEPTION OCCURRED] ‼ $e');
+    } on DioException catch (e) {
+      if (!mounted) return;
+
+      if (e.response?.data != null) {
+        final data = e.response?.data;
+        
+        // Ambil pesan spesifik dari key 'text'
+        if (data is Map && data['text'] != null) {
+          AlertManager.show(context, data['text'].toString(), false);
+          return;
+        }
+      }
+
+      AlertManager.showError(context, e);
+    } catch (e) {
       if (!mounted) return;
       AlertManager.showError(context, e);
     }
@@ -598,6 +689,7 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
+            autovalidateMode: AutovalidateMode.disabled,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -726,10 +818,8 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
         padding: const EdgeInsets.only(bottom: 12),
         child: TextFormField(
           controller: _alamatCtrl,
-          keyboardType: TextInputType.text,
           maxLines: 2,
           readOnly: true,
-          textCapitalization: TextCapitalization.characters,
           decoration: InputDecoration(
             labelText: 'Alamat Lengkap (Otomatis)',
             fillColor: Colors.grey.shade100,
@@ -738,7 +828,6 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
           ),
         ),
       ),
-
       CustomSearchDropdown<dynamic>(
         label: 'Provinsi',
         hint: 'Pilih Provinsi',
@@ -763,11 +852,14 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
             });
             _updateLiveAlamat();
             _fetchCities(value['id']);
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _formKey.currentState?.validate(),
+            );
           }
         },
-        validator: (v) => v == null ? 'Provinsi wajib dipilih' : null,
+        validator: (_) =>
+            _selectedProvinceId == null ? 'Provinsi wajib dipilih' : null,
       ),
-
       CustomSearchDropdown<dynamic>(
         label: 'Kota/Kabupaten',
         hint: 'Pilih Kota/Kabupaten',
@@ -790,11 +882,14 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
             });
             _updateLiveAlamat();
             _fetchDistricts(value['id']);
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _formKey.currentState?.validate(),
+            );
           }
         },
-        validator: (v) => v == null ? 'Kota/Kabupaten wajib dipilih' : null,
+        validator: (_) =>
+            _selectedCityId == null ? 'Kota/Kabupaten wajib dipilih' : null,
       ),
-
       CustomSearchDropdown<dynamic>(
         label: 'Kecamatan',
         hint: 'Pilih Kecamatan',
@@ -815,11 +910,14 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
             });
             _updateLiveAlamat();
             _fetchSubDistricts(value['id']);
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _formKey.currentState?.validate(),
+            );
           }
         },
-        validator: (v) => v == null ? 'Kecamatan wajib dipilih' : null,
+        validator: (_) =>
+            _selectedDistrictId == null ? 'Kecamatan wajib dipilih' : null,
       ),
-
       CustomSearchDropdown<dynamic>(
         label: 'Kelurahan/Desa',
         hint: 'Pilih Kelurahan/Desa',
@@ -833,96 +931,91 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
             item['name'].toString().toLowerCase().contains(query),
         onChanged: (value) {
           if (value != null) {
-            setState(() {
-              _selectedSubDistrictId = value['id'];
-            });
+            setState(() => _selectedSubDistrictId = value['id']);
             _updateLiveAlamat();
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _formKey.currentState?.validate(),
+            );
           }
         },
-        validator: (v) => v == null ? 'Kelurahan/Desa wajib dipilih' : null,
+        validator: (_) => _selectedSubDistrictId == null
+            ? 'Kelurahan/Desa wajib dipilih'
+            : null,
       ),
-
       Row(
         children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: TextFormField(
-                controller: _rtCtrl,
-                keyboardType: TextInputType.number,
-                textCapitalization: TextCapitalization.characters,
-                inputFormatters: [UpperCaseTextFormatter()],
-                decoration: InputDecoration(
-                  labelText: 'RT',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onChanged: (_) => _updateLiveAlamat(),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'RT wajib' : null,
-              ),
-            ),
-          ),
+          Expanded(child: _buildField('RT', _rtCtrl, TextInputType.number)),
           const SizedBox(width: 10),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: TextFormField(
-                controller: _rwCtrl,
-                keyboardType: TextInputType.number,
-                textCapitalization: TextCapitalization.characters,
-                inputFormatters: [UpperCaseTextFormatter()],
-                decoration: InputDecoration(
-                  labelText: 'RW',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onChanged: (_) => _updateLiveAlamat(),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'RW wajib' : null,
-              ),
-            ),
-          ),
+          Expanded(child: _buildField('RW', _rwCtrl, TextInputType.number)),
         ],
       ),
       _buildField('WA Darurat', _waDaruratCtrl, TextInputType.phone),
     ],
   );
 
-  Widget _buildPartThree() => Column(
-    children: [
-      _buildField('Nama Bank', _bankCtrl, TextInputType.text),
-      _buildField('Nomor Rekening', _noRekeningCtrl, TextInputType.number),
-      const SizedBox(height: 10),
-      GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 3,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.8,
+  Widget _buildPartThree() => ListView(
+  shrinkWrap: true,
+  children: [
+    CustomSearchDropdown<dynamic>(
+      label: 'Nama Bank',
+      hint: _isLoadingBank ? 'Memuat data bank...' : 'Pilih Nama Bank',
+      items: _banks,
+      selectedValue: _selectedBank,
+      itemLabelBuilder: (item) => item['nama_bank'].toString().toUpperCase(),
+      itemBuilder: (context, item) => Row(
         children: [
-          _buildUploadBox(
-            'KTP',
-            _fotoKtp,
-            () => _showImageSourceBottomSheet('KTP'),
-          ),
-          _buildUploadBox(
-            'Selfie',
-            _fotoSelfie,
-            () => _showImageSourceBottomSheet('Selfie'),
-          ),
-          _buildUploadBox(
-            'KK',
-            _fotoKK,
-            () => _showImageSourceBottomSheet('KK'),
+          if (item['icon_bank'] != null && item['icon_bank'].toString().isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Image.network(
+                item['icon_bank'],
+                width: 24,
+                height: 24,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.account_balance, size: 20),
+              ),
+            )
+          else
+            const Icon(Icons.account_balance, size: 20),
+          const SizedBox(width: 12),
+        
+          Text(
+            item['nama_bank'].toString().toUpperCase(),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           ),
         ],
       ),
-    ],
-  );
+      searchMatcher: (item, query) =>
+          item['nama_bank'].toString().toLowerCase().contains(query) ||
+          item['kode_bank'].toString().toLowerCase().contains(query),
+      onChanged: (value) {
+        if (value != null) {
+          setState(() {
+            _selectedBank = value;
+            _bankCtrl.text = value['nama_bank'].toString();
+          });
+          WidgetsBinding.instance.addPostFrameCallback((_) => _formKey.currentState?.validate());
+        }
+      },
+      validator: (_) => _selectedBank == null ? 'Nama bank wajib dipilih' : null,
+    ),
+    _buildField('Nomor Rekening', _noRekeningCtrl, TextInputType.number),
+    const SizedBox(height: 10),
+    GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 3,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 0.8,
+      children: [
+        _buildUploadBox('KTP', _fotoKtp, () => _showImageSourceBottomSheet('KTP')),
+        _buildUploadBox('Selfie', _fotoSelfie, () => _showImageSourceBottomSheet('Selfie')),
+        _buildUploadBox('KK', _fotoKK, () => _showImageSourceBottomSheet('KK')),
+      ],
+    ),
+  ],
+);
 
   Widget _buildField(
     String l,
@@ -938,6 +1031,12 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
       onTap: onTap,
       textCapitalization: TextCapitalization.characters,
       inputFormatters: [UpperCaseTextFormatter()],
+      onChanged: (_) {
+        // Re-trigger validasi agar pesan error langsung hilang begitu field diisi
+        if (_formKey.currentState != null) {
+          _formKey.currentState!.validate();
+        }
+      },
       decoration: InputDecoration(
         labelText: l,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -991,34 +1090,51 @@ class _KycMultiStepFormModalState extends State<KycMultiStepFormModal> {
               side: const BorderSide(color: Colors.black),
               foregroundColor: Colors.black,
             ),
-            onPressed: () => setState(() {
-              _currentPart--;
-              _pageController.jumpToPage(_currentPart);
-            }),
+            onPressed: () {
+              setState(() {
+                _currentPart--;
+                _pageController.jumpToPage(_currentPart);
+              });
+            },
             child: const Text('Kembali'),
           ),
         ),
-      const SizedBox(width: 12),
+      if (_currentPart > 0) const SizedBox(width: 12),
       Expanded(
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.black,
             foregroundColor: Colors.white,
           ),
-          onPressed: () => _currentPart < (_totalParts - 1)
-              ? setState(() {
-                  if (_formKey.currentState!.validate()) {
-                    _currentPart++;
-                    _pageController.jumpToPage(_currentPart);
-                  } else {
-                    AlertManager.show(
-                      context,
-                      'Mohon lengkapi field yang kosong.',
-                      false,
-                    );
-                  }
-                })
-              : _submitKyc(),
+          onPressed: () {
+            // Jalankan validasi pada FormState
+            final bool isValid = _formKey.currentState?.validate() ?? false;
+
+            if (_currentPart < (_totalParts - 1)) {
+              if (isValid) {
+                setState(() {
+                  _currentPart++;
+                  _pageController.jumpToPage(_currentPart);
+                });
+              } else {
+                AlertManager.show(
+                  context,
+                  'Mohon lengkapi field yang kosong.',
+                  false,
+                );
+              }
+            } else {
+              if (isValid) {
+                _submitKyc();
+              } else {
+                AlertManager.show(
+                  context,
+                  'Mohon lengkapi seluruh kolom formulir yang wajib diisi.',
+                  false,
+                );
+              }
+            }
+          },
           child: p.isKycSaving
               ? const SizedBox(
                   height: 20,

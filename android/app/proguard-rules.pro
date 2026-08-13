@@ -37,3 +37,20 @@
 
 # 8. Menjaga SharedPreferences Android agar tidak hilang saat Rilis
 -keep class androidx.preference.** { *; }
+
+
+# 9. Ignore missing ML Kit text recognition optional sub-modules
+# Google ML Kit & Text Recognition
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**
+-keep class com.google_mlkit_text_recognition.** { *; }
+
+# Firebase & Dependency Injection
+-keep class com.google.firebase.components.** { *; }
+-dontwarn com.google.firebase.components.**
+
+# Ignore optional language package warnings
+-dontwarn com.google.mlkit.vision.text.chinese.**
+-dontwarn com.google.mlkit.vision.text.devanagari.**
+-dontwarn com.google.mlkit.vision.text.japanese.**
+-dontwarn com.google.mlkit.vision.text.korean.**

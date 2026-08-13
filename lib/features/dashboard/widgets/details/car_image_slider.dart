@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -29,6 +30,7 @@ class CarImageSlider extends StatefulWidget {
 class _CarImageSliderState extends State<CarImageSlider> {
   late PageController _pageController;
   final Dio _dio = Dio();
+  Function(int index, double progress, String name)? _updateProgressDialog;
 
   @override
   void initState() {
@@ -79,31 +81,126 @@ class _CarImageSliderState extends State<CarImageSlider> {
     }
   }
 
-  // === FUNGSI DOWNLOAD DENGAN TAMPILAN MODERN ===
-  Future<void> _downloadAllImages() async {
+  // === POP-UP DIALOG KONFIRMASI DOWNLOAD (SAAS STYLE) ===
+  Future<void> _confirmAndDownload() async {
     if (widget.images.isEmpty) return;
 
-    Directory? downloadDir;
-    String folderLabel = "";
+    final int totalImages = widget.images.length;
 
-    if (Platform.isAndroid) {
-      downloadDir = Directory('/storage/emulated/0/Download');
-      folderLabel = "Penyimpanan Internal > Download";
-      if (!await downloadDir.exists()) {
-        downloadDir = await getExternalStorageDirectory();
-        folderLabel = "Penyimpanan Aplikasi (External Storage)";
-      }
-    } else {
-      downloadDir = await getApplicationDocumentsDirectory();
-      folderLabel = "Files App > Documents";
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE52320).withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.photo_library_outlined,
+                  color: Color(0xFFE52320),
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                "Konfirmasi Unduhan",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Montserrat',
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Ingin download image sebanyak $totalImages di gallery anda?",
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.4,
+                  fontFamily: 'Montserrat',
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text(
+                        "Batal",
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE52320),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text(
+                        "Download",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirm == true) {
+      _downloadAllImagesToGallery();
     }
+  }
 
-    if (downloadDir == null) {
-      _showCustomSnackBar(
-        'Gagal mengakses penyimpanan perangkat.',
-        isSuccess: false,
-      );
-      return;
+  // === FUNGSI DOWNLOAD & SIMPAN KE GALERI ===
+  Future<void> _downloadAllImagesToGallery() async {
+    // Cek/Minta Izin Penyimpanan Galeri
+    final hasAccess = await Gal.hasAccess();
+    if (!hasAccess) {
+      final requestGranted = await Gal.requestAccess();
+      if (!requestGranted) {
+        _showCustomSnackBar(
+          'Izin galeri diperlukan untuk menyimpan gambar.',
+          isSuccess: false,
+        );
+        return;
+      }
     }
 
     int totalFiles = widget.images.length;
@@ -111,7 +208,7 @@ class _CarImageSliderState extends State<CarImageSlider> {
     double currentProgress = 0.0;
     String currentFileName = "";
 
-    // 1. Tampilkan Dialog Progress dengan Desain Minimalis/Modern
+    // 1. Modal Progress Unduhan (SaaS Professional Design)
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -128,7 +225,7 @@ class _CarImageSliderState extends State<CarImageSlider> {
 
             return Dialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
               ),
               backgroundColor: Colors.white,
               child: Padding(
@@ -140,10 +237,10 @@ class _CarImageSliderState extends State<CarImageSlider> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: const Color(0xFFE52320).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
                             Icons.cloud_download_rounded,
@@ -157,20 +254,20 @@ class _CarImageSliderState extends State<CarImageSlider> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                "Mengunduh File HD",
+                                "Mengunduh ke Galeri",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                   fontFamily: 'Montserrat',
-                                  color: Color(0xFF222222),
+                                  color: Color(0xFF1E293B),
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                "Mendownload ${currentFileIndex + 1} dari $totalFiles foto",
+                                "Proses ${currentFileIndex + 1} dari $totalFiles berkas",
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey,
+                                  color: Color(0xFF64748B),
                                   fontFamily: 'Montserrat',
                                 ),
                               ),
@@ -184,7 +281,7 @@ class _CarImageSliderState extends State<CarImageSlider> {
                       currentFileName,
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF555555),
+                        color: Color(0xFF475569),
                         fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
@@ -196,21 +293,30 @@ class _CarImageSliderState extends State<CarImageSlider> {
                       child: LinearProgressIndicator(
                         value: currentProgress,
                         minHeight: 8,
-                        backgroundColor: Colors.grey[100],
+                        backgroundColor: const Color(0xFFF1F5F9),
                         color: const Color(0xFFE52320),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          "Lokasi: $folderLabel",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[500],
-                            fontStyle: FontStyle.italic,
-                          ),
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.photo_album_outlined,
+                              size: 12,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              "Tersimpan di Galeri Utama",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ],
                         ),
                         Text(
                           "${(currentProgress * 100).toStringAsFixed(0)}%",
@@ -231,8 +337,10 @@ class _CarImageSliderState extends State<CarImageSlider> {
       },
     );
 
-    // 2. Eksekusi Download Loop
+    // 2. Eksekusi Download & Integrasi Media Store/Galeri
     try {
+      final tempDir = await getTemporaryDirectory();
+
       for (int i = 0; i < widget.images.length; i++) {
         final url = widget.images[i]['image_url']?.toString() ?? '';
         if (url.isEmpty) continue;
@@ -242,11 +350,12 @@ class _CarImageSliderState extends State<CarImageSlider> {
           fileName = "car_${widget.carName.replaceAll(' ', '_')}_$i.jpg";
         }
 
-        final savePath = "${downloadDir.path}/$fileName";
+        final tempPath = "${tempDir.path}/$fileName";
 
+        // Download sementara ke Cache Temp
         await _dio.download(
           url,
-          savePath,
+          tempPath,
           onReceiveProgress: (received, total) {
             if (total != -1) {
               double progress = received / total;
@@ -254,14 +363,23 @@ class _CarImageSliderState extends State<CarImageSlider> {
             }
           },
         );
+
+        // Pindahkan ke Galeri Publik Peranti
+        await Gal.putImage(tempPath, album: "Reseller Mobil");
+
+        // Hapus file sementara di Temp
+        final tempFile = File(tempPath);
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
       }
 
-      // Tutup Dialog setelah sukses
+      // Tutup dialog progress
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
 
-      // 3. Tampilkan Dialog Sukses yang Informatif dan Modern
+      // Tampilkan Dialog Sukses
       if (mounted) {
-        _showSuccessDialog(totalFiles, folderLabel);
+        _showSuccessDialog(totalFiles);
       }
     } catch (e) {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
@@ -269,113 +387,106 @@ class _CarImageSliderState extends State<CarImageSlider> {
     }
   }
 
-  // === POP-UP ALERT SUKSES DESIGN MODERN ===
-  void _showSuccessDialog(int count, String pathLocation) {
+  // === POP-UP DIALOG SUKSES DESIGN MODERN (SAAS) ===
+  void _showSuccessDialog(int count) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         backgroundColor: Colors.white,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                shape: BoxShape.circle,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFDCFCE7),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF16A34A),
+                  size: 44,
+                ),
               ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: Colors.green,
-                size: 48,
+              const SizedBox(height: 18),
+              const Text(
+                "Unduhan Berhasil!",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Montserrat',
+                  color: Color(0xFF1E293B),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              "Unduhan Berhasil!",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                fontFamily: 'Montserrat',
-                color: Color(0xFF222222),
+              const SizedBox(height: 8),
+              Text(
+                "Berhasil menyimpan $count gambar ke dalam galeri foto peranti Anda.",
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  fontFamily: 'Montserrat',
+                  height: 1.4,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Berhasil menyimpan $count gambar resolusi HD ke perangkat Anda.",
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.grey,
-                fontFamily: 'Montserrat',
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Panel Informasi Folder Penyimpanan
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.folder_open_rounded,
-                        size: 16,
-                        color: Color(0xFFE52320),
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        "Lokasi Penyimpanan:",
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.photo_album_rounded,
+                      size: 18,
+                      color: Color(0xFFE52320),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Album: Reseller Mobil / Galeri Utama",
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF222222),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF334155),
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E293B),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    pathLocation,
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    "Selesai",
                     style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[700],
-                      fontFamily:
-                          'Courier', // Font bergaya monospace untuk path agar rapi
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF222222),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  "Selesai",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -392,8 +503,6 @@ class _CarImageSliderState extends State<CarImageSlider> {
       ),
     );
   }
-
-  Function(int index, double progress, String name)? _updateProgressDialog;
 
   @override
   Widget build(BuildContext context) {
@@ -429,10 +538,10 @@ class _CarImageSliderState extends State<CarImageSlider> {
               if (widget.status.toLowerCase() == 'booking')
                 Positioned.fill(
                   child: Container(
-                    color: Colors.black.withOpacity(0.5), // Efek gelap tipis
+                    color: Colors.black.withOpacity(0.5),
                     child: Center(
                       child: Transform.rotate(
-                        angle: -0.2, // Membuat teks agak miring modis
+                        angle: -0.2,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
@@ -532,7 +641,7 @@ class _CarImageSliderState extends State<CarImageSlider> {
 
           // TOMBOL DOWNLOAD ALL IMAGE HD
           InkWell(
-            onTap: _downloadAllImages,
+            onTap: _confirmAndDownload,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -558,7 +667,7 @@ class _CarImageSliderState extends State<CarImageSlider> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          "Dapatkan semua foto aset mobil ini ke penyimpanan",
+                          "Simpan semua foto aset mobil ini langsung ke Galeri HP",
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey,

@@ -49,46 +49,31 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 2000));
     if (!mounted) return;
 
-    // LANGKAH 1: PERIKSA SESI LOKAL TERLEBIH DAHULU SEBELUM UPGRADE DIALOG
-    final authProvider = context.read<AuthProvider>();
-    final bool hasValidSession = await authProvider.checkExistingSession();
-    if (!mounted) return;
-
-    // LANGKAH 2: JIKA SESI VALID, BYPASS DIALOG DAN LANGSUNG REDIRECT KE MAINLAYOUT
-    if (hasValidSession) {
-      debugPrint('[SPLASH SCREEN] Sesi Valid Ditemukan (Lokal Dev/Prod)! Langsung bypass ke MainLayout.');
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainLayout()),
-        (route) => false,
-      );
-      return; // Selesai, hentikan eksekusi kode di bawah agar upgrader tidak menahan layar
-    }
-
-    //  LANGKAH 3: JIKA SESI KOSONG, BARU JALANKAN PROSEDUR CEK UPDATE / LOGIN SCREEN
+    
     final upgrader = Upgrader(
-      debugDisplayAlways: false, 
+      debugDisplayAlways: false,
       debugLogging: true,
-      minAppVersion: '1.0.8', 
+      minAppVersion: '1.0.8',
     );
 
     await upgrader.initialize();
 
     if (upgrader.shouldDisplayUpgrade()) {
       debugPrint(
-        '[SPLASH SCREEN] Sesi Kosong & Terdeteksi update! Menampilkan Dialog Modern.',
+        '[SPLASH SCREEN] Terdeteksi versi baru di Store! Menampilkan Dialog Update.',
       );
       if (!mounted) return;
 
       ForceUpgradeDialog.show(
         context,
         upgrader: upgrader,
-        version: '1.0.7',
+        version: upgrader.currentAppStoreVersion ?? '1.0.8',
         isForceUpdate: upgrader.belowMinAppVersion(),
         onDismissOptional: () {
           _executeSessionNavigation();
         },
       );
-      return; 
+      return;
     }
 
     _executeSessionNavigation();

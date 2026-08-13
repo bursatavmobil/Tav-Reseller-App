@@ -7,7 +7,8 @@ class CustomSearchDropdown<T> extends StatefulWidget {
   final T? selectedValue;
   final String Function(T) itemLabelBuilder;
   final bool Function(T, String) searchMatcher;
-  final ValueChanged<T?> onChanged;
+  final Widget Function(BuildContext, T)? itemBuilder;
+  final ValueChanged<T>? onChanged;
   final FormFieldValidator<T>? validator;
 
   const CustomSearchDropdown({
@@ -17,6 +18,7 @@ class CustomSearchDropdown<T> extends StatefulWidget {
     required this.items,
     required this.selectedValue,
     required this.itemLabelBuilder,
+    this.itemBuilder,
     required this.searchMatcher,
     required this.onChanged,
     this.validator,
@@ -28,7 +30,7 @@ class CustomSearchDropdown<T> extends StatefulWidget {
 }
 
 class _CustomSearchDropdownState<T> extends State<CustomSearchDropdown<T>> {
-  void _showSearchBottomSheet() {
+  void _showSearchBottomSheet(FormFieldState<T> fieldState) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -39,10 +41,14 @@ class _CustomSearchDropdownState<T> extends State<CustomSearchDropdown<T>> {
           items: widget.items,
           selectedValue: widget.selectedValue,
           itemLabelBuilder: widget.itemLabelBuilder,
+          itemBuilder: widget.itemBuilder,
           searchMatcher: widget.searchMatcher,
           onSelected: (value) {
             Navigator.pop(context);
-            widget.onChanged(value);
+            fieldState.didChange(value); // Sync nilai internal FormField
+            if (widget.onChanged != null) {
+              widget.onChanged!(value);
+            }
           },
         );
       },
@@ -54,14 +60,23 @@ class _CustomSearchDropdownState<T> extends State<CustomSearchDropdown<T>> {
     final hasValue = widget.selectedValue != null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: widget.items.isEmpty ? null : _showSearchBottomSheet,
-        borderRadius: BorderRadius.circular(10),
-        child: FormField<T>(
-          initialValue: widget.selectedValue,
-          validator: widget.validator,
-          builder: (FormFieldState<T> state) {
-            return InputDecorator(
+      child: FormField<T>(
+        initialValue: widget.selectedValue,
+        validator: widget.validator,
+        builder: (FormFieldState<T> state) {
+          // Update nilai internal jika parent widget berubah secara external
+          if (state.value != widget.selectedValue) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              state.didChange(widget.selectedValue);
+            });
+          }
+
+          return InkWell(
+            onTap: widget.items.isEmpty
+                ? null
+                : () => _showSearchBottomSheet(state),
+            borderRadius: BorderRadius.circular(10),
+            child: InputDecorator(
               decoration: InputDecoration(
                 labelText: widget.label,
                 labelStyle: const TextStyle(
@@ -78,40 +93,31 @@ class _CustomSearchDropdownState<T> extends State<CustomSearchDropdown<T>> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFE52525),
-                  ), // Red Focus
+                  borderSide: const BorderSide(color: Color(0xFFE52525)),
                 ),
-                suffixIcon: widget.items.isEmpty
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: Padding(
-                          padding: EdgeInsets.all(12),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color.fromARGB(0, 0, 0, 0),
-                          ),
-                        ),
-                      )
-                    : const Icon(Icons.arrow_drop_down, color: Colors.black),
+                suffixIcon: const Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.black,
+                ),
                 filled: true,
                 fillColor: Colors.white,
               ),
-              child: Text(
-                hasValue
-                    ? widget.itemLabelBuilder(widget.selectedValue as T)
-                    : widget.hint,
-                style: TextStyle(
-                  color: hasValue ? Colors.black : Colors.grey.shade500,
-                  fontSize: 14,
-                  fontFamily: 'Montserrat',
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            );
-          },
-        ),
+              child: widget.itemBuilder != null && hasValue
+                  ? widget.itemBuilder!(context, widget.selectedValue as T)
+                  : Text(
+                      hasValue
+                          ? widget.itemLabelBuilder(widget.selectedValue as T)
+                          : widget.hint,
+                      style: TextStyle(
+                        color: hasValue ? Colors.black : Colors.grey.shade500,
+                        fontSize: 14,
+                        fontFamily: 'Montserrat',
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -122,6 +128,7 @@ class _DropdownSearchSheet<T> extends StatefulWidget {
   final List<T> items;
   final T? selectedValue;
   final String Function(T) itemLabelBuilder;
+  final Widget Function(BuildContext, T)? itemBuilder;
   final bool Function(T, String) searchMatcher;
   final ValueChanged<T> onSelected;
 
@@ -130,6 +137,7 @@ class _DropdownSearchSheet<T> extends StatefulWidget {
     required this.items,
     required this.selectedValue,
     required this.itemLabelBuilder,
+    this.itemBuilder,
     required this.searchMatcher,
     required this.onSelected,
   });
@@ -194,16 +202,14 @@ class _DropdownSearchSheetState<T> extends State<_DropdownSearchSheet<T>> {
                 controller: _searchCtrl,
                 onChanged: _filterList,
                 decoration: InputDecoration(
-                  hintText: "Cari nama wilayah...",
+                  hintText: "Cari data...",
                   prefixIcon: const Icon(Icons.search, color: Colors.grey),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFFFD700),
-                    ), // Gold Accent
+                    borderSide: const BorderSide(color: Color(0xFFFFD700)),
                   ),
                 ),
               ),
@@ -216,17 +222,19 @@ class _DropdownSearchSheetState<T> extends State<_DropdownSearchSheet<T>> {
                     final item = _filteredItems[index];
                     final isSelected = item == widget.selectedValue;
                     return ListTile(
-                      title: Text(
-                        widget.itemLabelBuilder(item),
-                        style: TextStyle(
-                          color: isSelected
-                              ? const Color(0xFFE52525)
-                              : Colors.black, // Red if selected
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
+                      title: widget.itemBuilder != null
+                          ? widget.itemBuilder!(context, item)
+                          : Text(
+                              widget.itemLabelBuilder(item),
+                              style: TextStyle(
+                                color: isSelected
+                                    ? const Color(0xFFE52525)
+                                    : Colors.black,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
                       trailing: isSelected
                           ? const Icon(
                               Icons.check_circle,
